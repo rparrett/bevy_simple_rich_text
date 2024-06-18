@@ -1,0 +1,14 @@
+[package]
+name = "bevy_simple_rich_text"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.13.2", default-features = false, features = [
+    "bevy_text",
+] }
+chumsky = "0.9.3"
+combine = "4.6.7"
+
+[dev-dependencies]
+bevy = { version = "0.13.2" }
