@@ -2,6 +2,8 @@
 
 A tiny, unambitious rich text helper for `bevy_ui`.
 
+Inspired by a similar utility in [bevy_jam_template](https://github.com/benfrankel/bevy_jam_template).
+
 ## Usage
 
 See [`examples/basic.rs`](./examples/basic.rs).
