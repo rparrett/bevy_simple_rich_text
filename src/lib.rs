@@ -179,30 +179,34 @@ fn test_empty() {
 
 #[test]
 fn test_sections() {
-    use bevy::render::color::Color;
+    use bevy::color::palettes;
+
+    let default = TextStyle::default();
 
     let red = TextStyle {
-        color: Color::rgb(1., 0., 0.),
+        color: palettes::css::RED.into(),
         ..Default::default()
     };
     let blue = TextStyle {
-        color: Color::rgb(0., 0., 1.),
+        color: palettes::css::BLUE.into(),
         ..Default::default()
     };
 
-    let style_library = StyleRegistry::default()
-        .with_styles([("red".to_string(), red), ("blue".to_string(), blue)]);
+    let style_library = StyleRegistry::default().with_styles([
+        ("red".to_string(), red.clone()),
+        ("blue".to_string(), blue.clone()),
+    ]);
 
     let sections = rich("test1[red]test2[]test3[blue]test4", &style_library);
 
     assert_eq!(sections.len(), 4);
 
     assert_eq!(sections[0].value, "test1");
-    assert_eq!(sections[0].style.color, Color::WHITE);
+    assert_eq!(sections[0].style.color, default.color);
     assert_eq!(sections[1].value, "test2");
-    assert_eq!(sections[1].style.color, Color::RED);
+    assert_eq!(sections[1].style.color, red.color);
     assert_eq!(sections[2].value, "test3");
-    assert_eq!(sections[2].style.color, Color::WHITE);
+    assert_eq!(sections[2].style.color, default.color);
     assert_eq!(sections[3].value, "test4");
-    assert_eq!(sections[3].style.color, Color::BLUE);
+    assert_eq!(sections[3].style.color, blue.color);
 }
