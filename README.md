@@ -1,6 +1,6 @@
 # bevy_simple_rich_text
 
-An unambitious rich text helper for `bevy_ui`.
+A tiny, unambitious rich text helper for `bevy_ui`.
 
 ## Usage
 
