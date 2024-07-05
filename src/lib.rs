@@ -173,8 +173,8 @@ fn test_parser() {
 fn test_empty() {
     let sections = rich("", &StyleRegistry::default());
 
-    assert!(sections.len() == 1);
-    assert!(sections[0].value == "");
+    assert_eq!(sections.len(), 1);
+    assert_eq!(sections[0].value, "");
 }
 
 #[test]
