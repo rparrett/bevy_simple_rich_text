@@ -15,6 +15,7 @@ exclude = [".github"]
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy.git", default-features = false, features = [
     "bevy_text",
+    "bevy_scene",
 ] }
 chumsky = "0.9.3"
 

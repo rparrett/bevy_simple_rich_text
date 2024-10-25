@@ -1,10 +1,11 @@
 use bevy::{
     app::{Plugin, Update},
-    core::Name,
+    asset::Assets,
     ecs::{component::Component, entity::Entity, query::Changed, system::Resource, world::World},
     hierarchy::DespawnRecursiveExt,
-    prelude::{BuildChildren, Bundle, Deref, DerefMut, EntityCommands},
-    text::{TextColor, TextFont, TextSpan},
+    prelude::{BuildChildren, Deref, DerefMut, FromWorld, Text},
+    scene::{DynamicScene, DynamicSceneBuilder, SceneSpawner},
+    text::TextSpan,
     utils::HashMap,
 };
 use chumsky::{
@@ -13,22 +14,17 @@ use chumsky::{
     Parser,
 };
 
-// What if our style registry was a HashMap<String, Entity>
-// and we cloned every Component on Entity onto the TextSpan?
+// TODO consider not making users mess around with the hashmap.
+// just let them spawn stuff with a RegisteredStyle component or something.
+// We would have to filter these components when cloning.
 
-// What if our style registry was a HashMap<String, FnMut<&EntityCommands>> or whatever?
 pub mod prelude {
-    pub use crate::style_fn;
     pub use crate::RichText;
     pub use crate::RichTextPlugin;
     pub use crate::StyleRegistry;
 }
 
 #[derive(Default)]
-pub struct TextStyle {
-    font: TextFont,
-    color: TextColor,
-}
 
 pub struct TextSection {
     value: String,
@@ -36,11 +32,13 @@ pub struct TextSection {
 }
 
 #[derive(Component)]
+#[require(Text)]
 pub struct RichText(pub String);
 
 pub struct RichTextPlugin;
 impl Plugin for RichTextPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
+        app.init_resource::<StyleRegistry>();
         app.add_systems(Update, update);
     }
 }
@@ -49,15 +47,15 @@ fn update(world: &mut World) {
     let mut ents_query = world.query_filtered::<Entity, Changed<RichText>>();
     let mut rt_query = world.query::<&RichText>();
 
-    let Some(mut registry) = world.remove_resource::<StyleRegistry>() else {
+    let Some(registry) = world.remove_resource::<StyleRegistry>() else {
         return;
     };
 
     let ents = ents_query.iter(world).collect::<Vec<_>>();
 
     for ent in ents {
-        bevy::log::info!("!!");
         world.commands().entity(ent).despawn_descendants();
+        world.flush();
 
         let Ok(rt) = rt_query.get(world, ent) else {
             continue;
@@ -65,98 +63,59 @@ fn update(world: &mut World) {
 
         let parsed = rich(&rt.0);
 
-        let mut children = vec![];
-        let mut cmds = world.commands();
         for section in parsed {
-            let mut span_ent = cmds.spawn(TextSpan::new(section.value));
+            let style_ent = registry.get_or_default(&section.tag);
 
-            let style = registry.get_mut_or_default(&section.tag);
+            // Clone components from the style entity onto a new entity
 
-            style(&mut span_ent);
+            let mut scene_spawner = SceneSpawner::default();
+            let scene = DynamicSceneBuilder::from_world(world)
+                .extract_entity(*style_ent)
+                .build();
 
-            children.push(span_ent.id());
-        }
+            let scene_id = world.resource_mut::<Assets<DynamicScene>>().add(scene);
+            let instance_id = scene_spawner.spawn_dynamic_sync(world, &scene_id).unwrap();
 
-        world.flush();
+            let span_ent = scene_spawner
+                .iter_instance_entities(instance_id)
+                .next()
+                .unwrap();
 
-        for child in children {
-            world.entity_mut(ent).add_child(child);
+            // Make that new entity a `TextSpan` and add it as as a child
+            // to our `RichText`.
+
+            world
+                .entity_mut(span_ent)
+                .insert(TextSpan::new(section.value));
+
+            world.entity_mut(ent).add_child(span_ent);
         }
     }
-}
 
-// type StyleFn = Box<dyn Fn() -> Box<dyn Bundle> + Send + Sync + 'static>;
-
-// fn style<F, B>(f: F) -> StyleFn
-// where
-//     F: Fn() -> B + Send + Sync + 'static,
-//     B: Bundle + 'static,
-// {
-//     Box::new(move || Box::new(f()))
-// }
-
-// type StyleFn = Box<dyn FnMut(&mut EntityCommands) + Send + Sync + 'static>;
-
-// fn style_fn<F>(f: F) -> StyleFn
-// where
-//     F: FnMut(&mut EntityCommands) + Send + Sync + 'static,
-// {
-//     Box::new(f)
-// }
-
-// fn style_fn<F>(f: F) -> StyleFn
-// where
-//     F: Bundle,
-// {
-//     Box::new(|e: &mut EntityCommands| {
-//         e.insert(f);
-//     })
-// }
-
-type StyleFn = Box<dyn FnMut(&mut EntityCommands) + Send + Sync + 'static>;
-
-pub fn style_fn<F, C>(f: C) -> StyleFn
-where
-    F: Bundle + Send + Sync + 'static,
-    C: Fn() -> F + Send + Sync + 'static,
-{
-    Box::new(move |e: &mut EntityCommands| {
-        e.insert(f());
-    })
+    world.insert_resource(registry);
 }
 
 #[derive(Resource, Deref, DerefMut)]
-//pub struct StyleRegistry(pub HashMap<String, Entity>);
-pub struct StyleRegistry(HashMap<String, StyleFn>);
+pub struct StyleRegistry(pub HashMap<String, Entity>);
+
 impl<'a> StyleRegistry {
-    pub fn get_mut_or_default(&mut self, tag: &str) -> &mut StyleFn {
-        if self.0.contains_key(tag) {
-            return self.0.get_mut(tag).unwrap();
-        }
-
-        return self.0.get_mut("").unwrap();
-    }
-
-    pub fn get_default(&self) -> &StyleFn {
+    pub fn get_default(&self) -> &Entity {
         &self.0[""]
     }
-    pub fn get_or_default(&self, tag: &str) -> &StyleFn {
+    pub fn get_or_default(&self, tag: &str) -> &Entity {
         self.0.get(tag).unwrap_or_else(|| self.get_default())
     }
     pub fn with_styles<T>(mut self, styles: T) -> Self
     where
-        T: IntoIterator<Item = (String, StyleFn)>,
+        T: IntoIterator<Item = (String, Entity)>,
     {
         self.0.extend(styles);
         self
     }
 }
-impl Default for StyleRegistry {
-    fn default() -> Self {
-        Self(HashMap::from([(
-            "".to_string(),
-            style_fn(|| Name::new("test")),
-        )]))
+impl FromWorld for StyleRegistry {
+    fn from_world(world: &mut World) -> Self {
+        Self(HashMap::from([("".to_string(), world.spawn_empty().id())]))
     }
 }
 
