@@ -3,7 +3,7 @@ use bevy_simple_rich_text::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins((DefaultPlugins, RichTextPlugin))
         .add_systems(Startup, setup)
         .run();
 }
@@ -11,35 +11,30 @@ fn main() {
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 
-    let white = TextStyle {
+    let font = TextFont {
         font_size: 40.,
         ..default()
     };
 
-    let red = TextStyle {
-        color: Color::hsl(0., 0.9, 0.7),
-        ..white.clone()
-    };
-    let blue = TextStyle {
-        color: Color::hsl(240., 0.9, 0.7),
-        ..white.clone()
-    };
+    let white = font.clone();
+    let red = (TextColor(Color::hsl(0., 0.9, 0.7)), font.clone());
+    let blue = (TextColor(Color::hsl(240., 0.9, 0.7)), font.clone());
 
     let style_registry = StyleRegistry::default().with_styles([
-        ("red".to_string(), red),
-        ("white".to_string(), white),
-        ("blue".to_string(), blue),
+        ("red".to_string(), style_fn(move || red.clone())),
+        ("white".to_string(), style_fn(move || white.clone())),
+        ("blue".to_string(), style_fn(move || blue.clone())),
     ]);
 
-    commands.spawn(
-        TextBundle::from_sections(rich(
-            "default[red]red[white]white[blue]blue[]default\n[[escaped]]",
-            &style_registry,
-        ))
-        .with_style(Style {
+    commands.insert_resource(style_registry);
+
+    commands.spawn((
+        Text::default(),
+        RichText("default[red]red[white]white[blue]blue[]default\n[[escaped]]".to_string()),
+        Style {
             align_self: AlignSelf::Center,
             justify_self: JustifySelf::Center,
             ..default()
-        }),
-    );
+        },
+    ));
 }
