@@ -12,7 +12,7 @@ fn main() {
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
-struct Rainbow(i32);
+struct Rainbow;
 
 fn setup(mut commands: Commands, mut styles: ResMut<StyleRegistry>) {
     commands.spawn(Camera2d::default());
@@ -22,28 +22,21 @@ fn setup(mut commands: Commands, mut styles: ResMut<StyleRegistry>) {
         ..default()
     };
 
-    styles.insert("white".to_string(), commands.spawn(font.clone()).id());
+    styles.insert(&mut commands, "white", font.clone());
     styles.insert(
-        "red".to_string(),
-        commands
-            .spawn((TextColor(Color::hsl(0., 0.9, 0.7)), font.clone()))
-            .id(),
+        &mut commands,
+        "red",
+        (TextColor(Color::hsl(0., 0.9, 0.7)), font.clone()),
     );
     styles.insert(
-        "blue".to_string(),
-        commands
-            .spawn((TextColor(Color::hsl(240., 0.9, 0.7)), font.clone()))
-            .id(),
+        &mut commands,
+        "blue",
+        (TextColor(Color::hsl(240., 0.9, 0.7)), font.clone()),
     );
     styles.insert(
-        "rainbow".to_string(),
-        commands
-            .spawn((
-                Rainbow(1),
-                TextColor(Color::hsl(0., 0.9, 0.8)),
-                font.clone(),
-            ))
-            .id(),
+        &mut commands,
+        "rainbow",
+        (Rainbow, TextColor(Color::hsl(0., 0.9, 0.8)), font.clone()),
     );
 
     commands.spawn((

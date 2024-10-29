@@ -3,7 +3,7 @@ use bevy::{
     asset::Assets,
     ecs::{component::Component, entity::Entity, query::Changed, system::Resource, world::World},
     hierarchy::DespawnRecursiveExt,
-    prelude::{BuildChildren, Deref, DerefMut, FromWorld, Text},
+    prelude::{BuildChildren, Bundle, Commands, Deref, DerefMut, FromWorld, Text},
     scene::{DynamicScene, DynamicSceneBuilder, SceneSpawner},
     text::TextSpan,
     utils::HashMap,
@@ -111,6 +111,12 @@ impl<'a> StyleRegistry {
     {
         self.0.extend(styles);
         self
+    }
+    pub fn insert<T>(&mut self, commands: &mut Commands, tag: &str, style: T)
+    where
+        T: Bundle,
+    {
+        self.0.insert(tag.to_owned(), commands.spawn(style).id());
     }
 }
 impl FromWorld for StyleRegistry {
