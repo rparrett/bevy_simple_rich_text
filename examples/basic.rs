@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{input::common_conditions::input_just_pressed, prelude::*};
 use bevy_simple_rich_text::{prelude::*, RegisteredStyle};
 
 fn main() {
@@ -7,14 +7,20 @@ fn main() {
         .add_plugins((DefaultPlugins, RichTextPlugin))
         .add_systems(Startup, setup)
         .add_systems(Update, rainbow_text)
+        .add_systems(
+            Update,
+            change_default.run_if(input_just_pressed(KeyCode::Space)),
+        )
         .run();
 }
+
+// TODO add an example of changing the default registered style
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 struct Rainbow;
 
-fn setup(mut commands: Commands, mut styles: ResMut<StyleRegistry>) {
+fn setup(mut commands: Commands) {
     commands.spawn(Camera2d::default());
 
     let font = TextFont {
@@ -60,4 +66,22 @@ fn rainbow_text(
     for mut color in &mut query {
         color.0 = color.0.rotate_hue(time.delta_secs() * 180.);
     }
+}
+
+fn change_default(
+    mut commands: Commands,
+    mut registry: ResMut<StyleRegistry>,
+    style_query: Query<&TextColor>,
+) {
+    let default = registry.get_default();
+
+    if style_query.get(*default).is_ok() {
+        commands.entity(*default).remove::<TextColor>();
+    } else {
+        commands
+            .entity(*default)
+            .insert(TextColor::from(Srgba::gray(0.6)));
+    }
+
+    registry.set_changed();
 }

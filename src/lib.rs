@@ -48,6 +48,9 @@ impl RegisteredStyle {
     pub fn new(tag: impl Into<String>) -> Self {
         Self(tag.into())
     }
+    pub fn default() -> Self {
+        Self("".into())
+    }
 }
 
 #[derive(Component)]
@@ -62,11 +65,6 @@ impl Plugin for RichTextPlugin {
         app.add_systems(Update, sync_registry);
     }
 }
-
-// TODO
-// We could still use a RegisteredStyle(String) component instead of making users maintain the hashmap.
-// Just need to react to spawning and despawning.
-// And provide users with an example of how to set the `StyleRegistry` as changed.
 
 fn sync_registry(
     changed: Query<(Entity, &RegisteredStyle), Changed<RegisteredStyle>>,
@@ -83,6 +81,7 @@ fn sync_registry(
     for (ent, style) in &changed {
         registry.0.insert(style.0.clone(), ent);
     }
+
     registry.0.retain(|_, v| all.get(*v).is_ok());
 }
 
@@ -100,52 +99,51 @@ fn richtext_changed(world: &mut World) {
     let mut ents_query = world.query_filtered::<Entity, Changed<RichText>>();
     let mut rt_query = world.query::<&RichText>();
 
-    let Some(registry) = world.remove_resource::<StyleRegistry>() else {
-        return;
-    };
-
     let ents = ents_query.iter(world).collect::<Vec<_>>();
-
-    for ent in ents {
-        world.commands().entity(ent).despawn_descendants();
-        world.flush();
-
-        let Ok(rt) = rt_query.get(world, ent) else {
-            continue;
-        };
-
-        let parsed = rich(&rt.0);
-
-        for section in parsed {
-            let style_ent = registry.get_or_default(&section.tag);
-
-            // Clone components from the style entity onto a new entity
-
-            let mut scene_spawner = SceneSpawner::default();
-            let scene = DynamicSceneBuilder::from_world(world)
-                .extract_entity(*style_ent)
-                .build();
-
-            let scene_id = world.resource_mut::<Assets<DynamicScene>>().add(scene);
-            let instance_id = scene_spawner.spawn_dynamic_sync(world, &scene_id).unwrap();
-
-            let span_ent = scene_spawner
-                .iter_instance_entities(instance_id)
-                .next()
-                .unwrap();
-
-            // Make that new entity a `TextSpan` and add it as as a child
-            // to our `RichText`.
-
-            world
-                .entity_mut(span_ent)
-                .insert(TextSpan::new(section.value));
-
-            world.entity_mut(ent).add_child(span_ent);
-        }
+    if ents.is_empty() {
+        return;
     }
 
-    world.insert_resource(registry);
+    world.resource_scope(|world, registry: Mut<StyleRegistry>| {
+        for ent in ents {
+            world.commands().entity(ent).despawn_descendants();
+            world.flush();
+
+            let Ok(rt) = rt_query.get(world, ent) else {
+                continue;
+            };
+
+            let parsed = rich(&rt.0);
+
+            for section in parsed {
+                let style_ent = registry.get_or_default(&section.tag);
+
+                // Clone components from the style entity onto a new entity
+
+                let mut scene_spawner = SceneSpawner::default();
+                let scene = DynamicSceneBuilder::from_world(world)
+                    .extract_entity(*style_ent)
+                    .build();
+
+                let scene_id = world.resource_mut::<Assets<DynamicScene>>().add(scene);
+                let instance_id = scene_spawner.spawn_dynamic_sync(world, &scene_id).unwrap();
+
+                let span_ent = scene_spawner
+                    .iter_instance_entities(instance_id)
+                    .next()
+                    .unwrap();
+
+                // Make that new entity a `TextSpan` and add it as as a child
+                // to our `RichText`.
+
+                world
+                    .entity_mut(span_ent)
+                    .insert(TextSpan::new(section.value));
+
+                world.entity_mut(ent).add_child(span_ent);
+            }
+        }
+    });
 }
 
 #[derive(Resource, Deref, DerefMut)]
