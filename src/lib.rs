@@ -3,7 +3,10 @@ use bevy::{
     asset::Assets,
     ecs::{component::Component, entity::Entity, query::Changed, system::Resource, world::World},
     hierarchy::DespawnRecursiveExt,
-    prelude::{BuildChildren, Bundle, Commands, Deref, DerefMut, FromWorld, Text},
+    prelude::{
+        BuildChildren, Bundle, Commands, Deref, DerefMut, DetectChanges, DetectChangesMut,
+        FromWorld, Mut, Query, RemovedComponents, Res, ResMut, Text, With,
+    },
     scene::{DynamicScene, DynamicSceneBuilder, SceneSpawner},
     text::TextSpan,
     utils::HashMap,
@@ -35,15 +38,65 @@ pub struct TextSection {
 #[require(Text)]
 pub struct RichText(pub String);
 
+// Added to entities holding reusable style components.
+//
+// Intentionally not `Reflect` so that this doesn't end up on `TextSpan`s when
+// the style is cloned.
+#[derive(Component)]
+pub struct RegisteredStyle(String);
+impl RegisteredStyle {
+    pub fn new(tag: impl Into<String>) -> Self {
+        Self(tag.into())
+    }
+}
+
+#[derive(Component)]
+pub struct DefaultStyle;
+
 pub struct RichTextPlugin;
 impl Plugin for RichTextPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.init_resource::<StyleRegistry>();
-        app.add_systems(Update, update);
+        app.add_systems(Update, richtext_changed);
+        app.add_systems(Update, registry_changed);
+        app.add_systems(Update, sync_registry);
     }
 }
 
-fn update(world: &mut World) {
+// TODO
+// We could still use a RegisteredStyle(String) component instead of making users maintain the hashmap.
+// Just need to react to spawning and despawning.
+// And provide users with an example of how to set the `StyleRegistry` as changed.
+
+fn sync_registry(
+    changed: Query<(Entity, &RegisteredStyle), Changed<RegisteredStyle>>,
+    all: Query<(), With<RegisteredStyle>>,
+    mut removed: RemovedComponents<RegisteredStyle>,
+    mut registry: ResMut<StyleRegistry>,
+) {
+    for ent in removed.read() {
+        registry.0.retain(|_, v| *v != ent);
+    }
+    if changed.is_empty() {
+        return;
+    }
+    for (ent, style) in &changed {
+        registry.0.insert(style.0.clone(), ent);
+    }
+    registry.0.retain(|_, v| all.get(*v).is_ok());
+}
+
+fn registry_changed(registry: Res<StyleRegistry>, mut rt_query: Query<Mut<RichText>>) {
+    if !registry.is_changed() {
+        return;
+    }
+
+    for mut rt in &mut rt_query {
+        rt.set_changed();
+    }
+}
+
+fn richtext_changed(world: &mut World) {
     let mut ents_query = world.query_filtered::<Entity, Changed<RichText>>();
     let mut rt_query = world.query::<&RichText>();
 
@@ -116,12 +169,18 @@ impl<'a> StyleRegistry {
     where
         T: Bundle,
     {
-        self.0.insert(tag.to_owned(), commands.spawn(style).id());
+        self.0.insert(
+            tag.to_owned(),
+            commands.spawn((style, RegisteredStyle::new(tag))).id(),
+        );
     }
 }
 impl FromWorld for StyleRegistry {
     fn from_world(world: &mut World) -> Self {
-        Self(HashMap::from([("".to_string(), world.spawn_empty().id())]))
+        Self(HashMap::from([(
+            "".to_string(),
+            world.spawn((DefaultStyle, RegisteredStyle::new(""))).id(),
+        )]))
     }
 }
 

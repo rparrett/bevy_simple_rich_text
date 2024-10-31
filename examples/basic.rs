@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_simple_rich_text::prelude::*;
+use bevy_simple_rich_text::{prelude::*, RegisteredStyle};
 
 fn main() {
     App::new()
@@ -22,22 +22,23 @@ fn setup(mut commands: Commands, mut styles: ResMut<StyleRegistry>) {
         ..default()
     };
 
-    styles.insert(&mut commands, "white", font.clone());
-    styles.insert(
-        &mut commands,
-        "red",
-        (TextColor(Color::hsl(0., 0.9, 0.7)), font.clone()),
-    );
-    styles.insert(
-        &mut commands,
-        "blue",
-        (TextColor(Color::hsl(240., 0.9, 0.7)), font.clone()),
-    );
-    styles.insert(
-        &mut commands,
-        "rainbow",
-        (Rainbow, TextColor(Color::hsl(0., 0.9, 0.8)), font.clone()),
-    );
+    commands.spawn((RegisteredStyle::new("white"), font.clone()));
+    commands.spawn((
+        RegisteredStyle::new("red"),
+        TextColor(Color::hsl(0., 0.9, 0.7)),
+        font.clone(),
+    ));
+    commands.spawn((
+        RegisteredStyle::new("blue"),
+        TextColor(Color::hsl(240., 0.9, 0.7)),
+        font.clone(),
+    ));
+    commands.spawn((
+        RegisteredStyle::new("rainbow"),
+        Rainbow,
+        TextColor(Color::hsl(0., 0.9, 0.8)),
+        font.clone(),
+    ));
 
     commands.spawn((
         RichText(
