@@ -4,8 +4,8 @@ use bevy::{
     ecs::{component::Component, entity::Entity, query::Changed, system::Resource, world::World},
     hierarchy::DespawnRecursiveExt,
     prelude::{
-        BuildChildren, Bundle, Commands, Deref, DerefMut, DetectChanges, DetectChangesMut,
-        FromWorld, Mut, Query, RemovedComponents, Res, ResMut, Text, With,
+        BuildChildren, Deref, DerefMut, DetectChanges, DetectChangesMut, FromWorld, Mut, Query,
+        RemovedComponents, Res, ResMut, Text, With,
     },
     scene::{DynamicScene, DynamicSceneBuilder, SceneSpawner},
     text::TextSpan,
@@ -155,22 +155,6 @@ impl<'a> StyleRegistry {
     }
     pub fn get_or_default(&self, tag: &str) -> &Entity {
         self.0.get(tag).unwrap_or_else(|| self.get_default())
-    }
-    pub fn with_styles<T>(mut self, styles: T) -> Self
-    where
-        T: IntoIterator<Item = (String, Entity)>,
-    {
-        self.0.extend(styles);
-        self
-    }
-    pub fn insert<T>(&mut self, commands: &mut Commands, tag: &str, style: T)
-    where
-        T: Bundle,
-    {
-        self.0.insert(
-            tag.to_owned(),
-            commands.spawn((style, RegisteredStyle::new(tag))).id(),
-        );
     }
 }
 impl FromWorld for StyleRegistry {
