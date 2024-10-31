@@ -63,6 +63,9 @@ fn rainbow_text(
     mut query: Query<&mut TextColor, (With<Rainbow>, With<TextSpan>)>,
     time: Res<Time>,
 ) {
+    // TODO this system needs to run after the systems in bevy_simple_rich_text.
+    // Otherwise when e.g. pressing space to change the defaults, this text will
+    // briefly flash its initial color.
     for mut color in &mut query {
         color.0 = color.0.rotate_hue(time.delta_secs() * 180.);
     }
