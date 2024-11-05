@@ -261,49 +261,49 @@ pub fn rich(text: &str) -> Vec<TextSection> {
     sections
 }
 
-// #[test]
-// fn test_parser() {
-//     assert_eq!(
-//         tags_or_text().parse("[bold]"),
-//         Ok(vec![TagOrText::Tag("bold".to_string())])
-//     );
-//     assert_eq!(
-//         tags_or_text().parse("[[horse]]"),
-//         Ok(vec![TagOrText::Text("[horse]".to_string())])
-//     );
-//     assert_eq!(
-//         tags_or_text().parse("[bold]Bold Text[italic]Italic Text"),
-//         Ok(vec![
-//             TagOrText::Tag("bold".to_string()),
-//             TagOrText::Text("Bold Text".to_string()),
-//             TagOrText::Tag("italic".to_string()),
-//             TagOrText::Text("Italic Text".to_string()),
-//         ])
-//     );
-//     assert_eq!(
-//         tags_or_text().parse("[]Text[]"),
-//         Ok(vec![
-//             TagOrText::Tag("".to_string()),
-//             TagOrText::Text("Text".to_string()),
-//             TagOrText::Tag("".to_string()),
-//         ])
-//     );
-//     assert_eq!(
-//         tags_or_text().parse("[[]]][]"),
-//         Ok(vec![
-//             TagOrText::Text("[]]".to_string()),
-//             TagOrText::Tag("".to_string()),
-//         ])
-//     );
-// }
+#[test]
+fn test_parser() {
+    assert_eq!(
+        tags_or_text().parse("[bold]"),
+        Ok(vec![TagOrText::Tag("bold".to_string())])
+    );
+    assert_eq!(
+        tags_or_text().parse("[[horse]]"),
+        Ok(vec![TagOrText::Text("[horse]".to_string())])
+    );
+    assert_eq!(
+        tags_or_text().parse("[bold]Bold Text[italic]Italic Text"),
+        Ok(vec![
+            TagOrText::Tag("bold".to_string()),
+            TagOrText::Text("Bold Text".to_string()),
+            TagOrText::Tag("italic".to_string()),
+            TagOrText::Text("Italic Text".to_string()),
+        ])
+    );
+    assert_eq!(
+        tags_or_text().parse("[]Text[]"),
+        Ok(vec![
+            TagOrText::Tag("".to_string()),
+            TagOrText::Text("Text".to_string()),
+            TagOrText::Tag("".to_string()),
+        ])
+    );
+    assert_eq!(
+        tags_or_text().parse("[[]]][]"),
+        Ok(vec![
+            TagOrText::Text("[]]".to_string()),
+            TagOrText::Tag("".to_string()),
+        ])
+    );
+}
 
-// #[test]
-// fn test_empty() {
-//     let sections = rich("", &StyleRegistry::default());
+#[test]
+fn test_empty() {
+    let sections = rich("");
 
-//     assert_eq!(sections.len(), 1);
-//     assert_eq!(sections[0].value, "");
-// }
+    assert_eq!(sections.len(), 1);
+    assert_eq!(sections[0].value, "");
+}
 
 // #[test]
 // fn test_sections() {
