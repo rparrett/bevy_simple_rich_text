@@ -31,7 +31,7 @@ pub mod prelude {
 
 pub struct TextSection {
     value: String,
-    tag: String,
+    tags: Vec<String>,
 }
 
 #[derive(Component)]
@@ -104,6 +104,9 @@ fn richtext_changed(world: &mut World) {
         return;
     }
 
+    // TODO lazy
+    let empty_tags = vec!["".to_string()];
+
     world.resource_scope(|world, registry: Mut<StyleRegistry>| {
         for ent in ents {
             world.commands().entity(ent).despawn_descendants();
@@ -116,31 +119,39 @@ fn richtext_changed(world: &mut World) {
             let parsed = rich(&rt.0);
 
             for section in parsed {
-                let style_ent = registry.get_or_default(&section.tag);
+                let tags = if section.tags.is_empty() {
+                    &empty_tags
+                } else {
+                    &section.tags
+                };
 
-                // Clone components from the style entity onto a new entity
+                for tag in tags {
+                    let style_ent = registry.get_or_default(&tag);
 
-                let mut scene_spawner = SceneSpawner::default();
-                let scene = DynamicSceneBuilder::from_world(world)
-                    .extract_entity(*style_ent)
-                    .build();
+                    // Clone components from the style entity onto a new entity
 
-                let scene_id = world.resource_mut::<Assets<DynamicScene>>().add(scene);
-                let instance_id = scene_spawner.spawn_dynamic_sync(world, &scene_id).unwrap();
+                    let mut scene_spawner = SceneSpawner::default();
+                    let scene = DynamicSceneBuilder::from_world(world)
+                        .extract_entity(*style_ent)
+                        .build();
 
-                let span_ent = scene_spawner
-                    .iter_instance_entities(instance_id)
-                    .next()
-                    .unwrap();
+                    let scene_id = world.resource_mut::<Assets<DynamicScene>>().add(scene);
+                    let instance_id = scene_spawner.spawn_dynamic_sync(world, &scene_id).unwrap();
 
-                // Make that new entity a `TextSpan` and add it as as a child
-                // to our `RichText`.
+                    let span_ent = scene_spawner
+                        .iter_instance_entities(instance_id)
+                        .next()
+                        .unwrap();
 
-                world
-                    .entity_mut(span_ent)
-                    .insert(TextSpan::new(section.value));
+                    // Make that new entity a `TextSpan` and add it as as a child
+                    // to our `RichText`.
 
-                world.entity_mut(ent).add_child(span_ent);
+                    world
+                        .entity_mut(span_ent)
+                        .insert(TextSpan::new(section.value.clone()));
+
+                    world.entity_mut(ent).add_child(span_ent);
+                }
             }
         }
     });
@@ -167,8 +178,8 @@ impl FromWorld for StyleRegistry {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-enum TagOrText {
-    Tag(String),
+enum TagsOrText {
+    Tags(Vec<String>),
     Text(String),
 }
 
@@ -179,12 +190,20 @@ fn escaped_bracket() -> impl Parser<char, String, Error = Cheap<char>> {
         .map(|c| c.to_string())
 }
 
-fn tag() -> impl Parser<char, TagOrText, Error = Cheap<char>> {
-    not_end_bracket()
-        .repeated()
+fn tag_block() -> impl Parser<char, TagsOrText, Error = Cheap<char>> {
+    tags()
         .delimited_by(just('['), just(']'))
-        .collect::<String>()
-        .map(TagOrText::Tag)
+        .map(TagsOrText::Tags)
+}
+
+fn tags() -> impl Parser<char, Vec<String>, Error = Cheap<char>> {
+    not_end_bracket_or_comma()
+        .separated_by(just(','))
+        .collect::<Vec<_>>()
+}
+
+fn not_end_bracket_or_comma() -> impl Parser<char, String, Error = Cheap<char>> {
+    none_of("],").repeated().at_least(1).collect::<String>()
 }
 
 fn not_end_bracket() -> impl Parser<char, String, Error = Cheap<char>> {
@@ -199,21 +218,21 @@ fn stray_end_bracket() -> impl Parser<char, String, Error = Cheap<char>> {
     just(']').map(|c| c.to_string())
 }
 
-fn text() -> impl Parser<char, TagOrText, Error = Cheap<char>> {
+fn text() -> impl Parser<char, TagsOrText, Error = Cheap<char>> {
     choice((escaped_bracket(), not_any_bracket(), stray_end_bracket()))
         .repeated()
         .at_least(1)
         .collect::<String>()
-        .map(TagOrText::Text)
+        .map(TagsOrText::Text)
 }
 
-fn tags_or_text() -> impl Parser<char, Vec<TagOrText>, Error = Cheap<char>> {
-    choice((text(), tag())).repeated().collect::<Vec<_>>()
+fn tags_or_text() -> impl Parser<char, Vec<TagsOrText>, Error = Cheap<char>> {
+    choice((text(), tag_block())).repeated().collect::<Vec<_>>()
 }
 
 pub fn rich(text: &str) -> Vec<TextSection> {
     let mut sections = vec![];
-    let mut current_tag = "".to_string();
+    let mut current_tags = vec![];
 
     let result = tags_or_text().parse(text);
 
@@ -234,7 +253,7 @@ pub fn rich(text: &str) -> Vec<TextSection> {
 
             sections.push(TextSection {
                 value: "".to_string(),
-                tag: current_tag,
+                tags: current_tags,
             });
 
             return sections;
@@ -243,18 +262,18 @@ pub fn rich(text: &str) -> Vec<TextSection> {
 
     for t in tags_or_text {
         match t {
-            TagOrText::Text(value) => sections.push(TextSection {
+            TagsOrText::Text(value) => sections.push(TextSection {
                 value,
-                tag: current_tag.clone(),
+                tags: current_tags.clone(),
             }),
-            TagOrText::Tag(tag) => current_tag = tag,
+            TagsOrText::Tags(tags) => current_tags = tags,
         }
     }
 
     if sections.is_empty() {
         sections.push(TextSection {
             value: "".to_string(),
-            tag: "".to_string(),
+            tags: vec![],
         });
     }
 
@@ -265,36 +284,45 @@ pub fn rich(text: &str) -> Vec<TextSection> {
 fn test_parser() {
     assert_eq!(
         tags_or_text().parse("[bold]"),
-        Ok(vec![TagOrText::Tag("bold".to_string())])
+        Ok(vec![TagsOrText::Tags(vec!["bold".to_string()])])
     );
     assert_eq!(
         tags_or_text().parse("[[horse]]"),
-        Ok(vec![TagOrText::Text("[horse]".to_string())])
+        Ok(vec![TagsOrText::Text("[horse]".to_string())])
     );
     assert_eq!(
         tags_or_text().parse("[bold]Bold Text[italic]Italic Text"),
         Ok(vec![
-            TagOrText::Tag("bold".to_string()),
-            TagOrText::Text("Bold Text".to_string()),
-            TagOrText::Tag("italic".to_string()),
-            TagOrText::Text("Italic Text".to_string()),
+            TagsOrText::Tags(vec!["bold".to_string()]),
+            TagsOrText::Text("Bold Text".to_string()),
+            TagsOrText::Tags(vec!["italic".to_string()]),
+            TagsOrText::Text("Italic Text".to_string()),
         ])
     );
     assert_eq!(
         tags_or_text().parse("[]Text[]"),
         Ok(vec![
-            TagOrText::Tag("".to_string()),
-            TagOrText::Text("Text".to_string()),
-            TagOrText::Tag("".to_string()),
+            TagsOrText::Tags(vec![]),
+            TagsOrText::Text("Text".to_string()),
+            TagsOrText::Tags(vec![]),
         ])
     );
+    // escaping
     assert_eq!(
         tags_or_text().parse("[[]]][]"),
         Ok(vec![
-            TagOrText::Text("[]]".to_string()),
-            TagOrText::Tag("".to_string()),
+            TagsOrText::Text("[]]".to_string()),
+            TagsOrText::Tags(vec![]),
         ])
     );
+    // multiple
+    assert_eq!(
+        tags_or_text().parse("[bold,italic]text"),
+        Ok(vec![
+            TagsOrText::Tags(vec!["bold".to_string(), "italic".to_string()]),
+            TagsOrText::Text("text".to_string()),
+        ])
+    )
 }
 
 #[test]
