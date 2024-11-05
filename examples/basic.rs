@@ -1,12 +1,14 @@
 use bevy::{input::common_conditions::input_just_pressed, prelude::*};
-use bevy_simple_rich_text::{prelude::*, RegisteredStyle};
+use bevy_simple_rich_text::{prelude::*, RegisteredStyle, RichTextSet};
 
 fn main() {
     App::new()
         .register_type::<Rainbow>()
         .add_plugins((DefaultPlugins, RichTextPlugin))
         .add_systems(Startup, setup)
-        .add_systems(Update, rainbow_text)
+        // `TextColor` or `TextFont` modifying systems should run after `RichTextSet`
+        // to prevent brief flashes of their registered styles.
+        .add_systems(Update, rainbow_text.after(RichTextSet))
         .add_systems(
             Update,
             change_default.run_if(input_just_pressed(KeyCode::Space)),
@@ -14,9 +16,7 @@ fn main() {
         .run();
 }
 
-// TODO add an example of changing the default registered style
-
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Default)]
 #[reflect(Component)]
 struct Rainbow;
 
@@ -65,11 +65,8 @@ fn rainbow_text(
     mut query: Query<&mut TextColor, (With<Rainbow>, With<TextSpan>)>,
     time: Res<Time>,
 ) {
-    // TODO this system needs to run after the systems in bevy_simple_rich_text.
-    // Otherwise when e.g. pressing space to change the defaults, this text will
-    // briefly flash its initial color.
     for mut color in &mut query {
-        color.0 = color.0.rotate_hue(time.delta_secs() * 180.);
+        color.0 = color.0.with_hue(time.elapsed_secs_wrapped() * 180. % 360.0);
     }
 }
 

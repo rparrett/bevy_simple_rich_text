@@ -10,7 +10,8 @@ use bevy::{
     hierarchy::DespawnRecursiveExt,
     prelude::{
         AppTypeRegistry, BuildChildren, Deref, DerefMut, DetectChanges, DetectChangesMut,
-        FromWorld, Mut, Query, ReflectComponent, RemovedComponents, Res, ResMut, Text, With,
+        FromWorld, IntoSystemConfigs, Mut, Query, ReflectComponent, RemovedComponents, Res, ResMut,
+        SystemSet, Text, With,
     },
     text::TextSpan,
     utils::HashMap,
@@ -65,13 +66,17 @@ impl RegisteredStyle {
 #[derive(Component)]
 pub struct DefaultStyle;
 
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RichTextSet;
+
 pub struct RichTextPlugin;
 impl Plugin for RichTextPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.init_resource::<StyleRegistry>();
-        app.add_systems(Update, richtext_changed);
-        app.add_systems(Update, registry_changed);
-        app.add_systems(Update, sync_registry);
+        app.add_systems(
+            Update,
+            (richtext_changed, registry_changed, sync_registry).in_set(RichTextSet),
+        );
     }
 }
 
