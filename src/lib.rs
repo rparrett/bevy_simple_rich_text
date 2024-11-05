@@ -1,6 +1,5 @@
 use bevy::{
     app::{Plugin, Update},
-    asset::Assets,
     ecs::{
         component::{Component, ComponentId},
         entity::Entity,
@@ -13,7 +12,6 @@ use bevy::{
         AppTypeRegistry, BuildChildren, Deref, DerefMut, DetectChanges, DetectChangesMut,
         FromWorld, Mut, Query, ReflectComponent, RemovedComponents, Res, ResMut, Text, With,
     },
-    scene::{DynamicScene, DynamicSceneBuilder, SceneSpawner},
     text::TextSpan,
     utils::HashMap,
 };
@@ -141,8 +139,6 @@ fn richtext_changed(world: &mut World) {
                     let components = {
                         let style_entt = world.entity(*style_ent);
 
-                        // Clone components from the style entity onto a new entity
-
                         let archetype = style_entt.archetype();
                         let components = archetype.components().collect::<Vec<_>>();
                         components
@@ -234,10 +230,6 @@ fn tags() -> impl Parser<char, Vec<String>, Error = Cheap<char>> {
 
 fn not_end_bracket_or_comma() -> impl Parser<char, String, Error = Cheap<char>> {
     none_of("],").repeated().at_least(1).collect::<String>()
-}
-
-fn not_end_bracket() -> impl Parser<char, String, Error = Cheap<char>> {
-    none_of("]").repeated().at_least(1).collect::<String>()
 }
 
 fn not_any_bracket() -> impl Parser<char, String, Error = Cheap<char>> {
