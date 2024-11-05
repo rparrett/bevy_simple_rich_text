@@ -1,3 +1,5 @@
+use std::iter;
+
 use bevy::{
     app::{Plugin, Update},
     ecs::{
@@ -23,7 +25,6 @@ use chumsky::{
 };
 
 // TODO consider completely rebuilding style registry on any change
-// TODO default style should be automatically composed into other specified styles
 
 pub mod prelude {
     pub use crate::RichText;
@@ -117,9 +118,6 @@ fn richtext_changed(world: &mut World) {
         return;
     }
 
-    // TODO lazy
-    let empty_tags = vec!["".to_string()];
-
     world.resource_scope(|world, registry: Mut<StyleRegistry>| {
         for ent in ents {
             world.commands().entity(ent).despawn_descendants();
@@ -132,18 +130,16 @@ fn richtext_changed(world: &mut World) {
             let parsed = rich(&rt.0);
 
             for section in parsed {
-                let tags = if section.tags.is_empty() {
-                    &empty_tags
-                } else {
-                    &section.tags
-                };
+                let mut tags = vec!["".to_string()];
+                tags.extend(section.tags);
 
                 let span_ent = world.spawn(TextSpan::new(section.value.clone())).id();
 
                 world.entity_mut(ent).add_child(span_ent);
 
-                for tag in tags {
-                    let style_ent = registry.get_or_default(&tag);
+                let empty_tags = iter::once("");
+                for tag in empty_tags.chain(tags.iter().map(|t| t.as_str())) {
+                    let style_ent = registry.get_or_default(tag);
 
                     let components = {
                         let style_entt = world.entity(*style_ent);
