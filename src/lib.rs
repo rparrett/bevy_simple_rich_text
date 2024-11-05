@@ -6,7 +6,7 @@
 //!
 //! ```no_run
 //! use bevy::prelude::*;
-//! use bevy_simple_rich_text::{RichTextPlugin};
+//! use bevy_simple_rich_text::prelude::*;
 //!
 //! fn main() {
 //!     App::new()
@@ -54,7 +54,7 @@ use parser::parse_richtext;
 
 /// Commonly used types for `bevy_simple_rich_text`.
 pub mod prelude {
-    pub use crate::{RichText, RichText2d, RichTextPlugin, StyleTags};
+    pub use crate::{RichText, RichText2d, RichTextPlugin, StyleTag, StyleTags};
 }
 
 mod parser;
