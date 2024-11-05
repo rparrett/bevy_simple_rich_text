@@ -14,6 +14,7 @@ exclude = [".github"]
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy.git", default-features = false, features = [
+    "bevy_ui",
     "bevy_text",
     "bevy_scene",
 ] }
@@ -21,3 +22,6 @@ chumsky = "0.9.3"
 
 [dev-dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy.git" }
+
+[lints.rust]
+missing_docs = "warn"
