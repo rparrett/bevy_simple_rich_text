@@ -40,8 +40,8 @@ use bevy::{
     hierarchy::DespawnRecursiveExt,
     prelude::{
         AppTypeRegistry, BuildChildren, Deref, DerefMut, DetectChanges, DetectChangesMut,
-        FromWorld, IntoSystemConfigs, Mut, Query, ReflectComponent, RemovedComponents, Res, ResMut,
-        SystemSet, Text, With,
+        FromWorld, IntoSystemConfigs, Mut, Or, Query, ReflectComponent, RemovedComponents, Res,
+        ResMut, SystemSet, Text, Text2d, With,
     },
     text::TextSpan,
     utils::HashMap,
@@ -54,14 +54,12 @@ use parser::parse_richtext;
 
 /// Commonly used types for `bevy_simple_rich_text`.
 pub mod prelude {
-    pub use crate::RichText;
-    pub use crate::RichTextPlugin;
-    pub use crate::StyleRegistry;
+    pub use crate::{RichText, RichText2d, RichTextPlugin, StyleRegistry};
 }
 
 mod parser;
 
-/// The top-level component for rich text in for `bevy_ui`.
+/// The top-level component for rich text for `bevy_ui`.
 #[derive(Component)]
 #[require(Text)]
 pub struct RichText(pub String);
@@ -72,7 +70,18 @@ impl RichText {
     }
 }
 
-/// A component marking an entity as a "registered style" that can be refered to
+/// The top-level component for rich text in world-space for 2d cameras.
+#[derive(Component)]
+#[require(Text2d)]
+pub struct RichText2d(pub String);
+impl RichText2d {
+    /// Creates a new `RichText` with the provided markup.
+    pub fn new(markup: impl Into<String>) -> Self {
+        Self(markup.into())
+    }
+}
+
+/// A component marking an entity as a "registered style" that can be referred to
 /// by its tag when defining a [`RichText`].
 ///
 /// Intentionally not `Reflect` so that this doesn't end up on `TextSpan`s when
@@ -93,6 +102,8 @@ impl Default for RegisteredStyle {
 
 /// A `HashMap` containing a mapping of `RegisteredStyle` tags to the
 /// `Entity`s holding their style components.
+///
+/// This `Resource` is automatically managed by `bevy_simple_rich_text`.
 #[derive(Resource, Deref, DerefMut)]
 pub struct StyleRegistry(pub HashMap<String, Entity>);
 
@@ -170,24 +181,31 @@ fn registry_changed(registry: Res<StyleRegistry>, mut rt_query: Query<Mut<RichTe
 }
 
 fn richtext_changed(world: &mut World) {
-    let mut ents_query = world.query_filtered::<Entity, Changed<RichText>>();
-    let mut rt_query = world.query::<&RichText>();
+    let mut ents_query =
+        world.query_filtered::<Entity, Or<(Changed<RichText>, Changed<RichText2d>)>>();
 
     let ents = ents_query.iter(world).collect::<Vec<_>>();
     if ents.is_empty() {
         return;
     }
 
+    let mut rt_query = world.query::<&RichText>();
+    let mut rt_2d_query = world.query::<&RichText2d>();
+
     world.resource_scope(|world, registry: Mut<StyleRegistry>| {
         for ent in ents {
             world.commands().entity(ent).despawn_descendants();
             world.flush();
 
-            let Ok(rt) = rt_query.get(world, ent) else {
+            let Ok(rt) = rt_query
+                .get(world, ent)
+                .map(|rt| &rt.0)
+                .or_else(|_| rt_2d_query.get(world, ent).map(|rt| &rt.0))
+            else {
                 continue;
             };
 
-            let parsed = parse_richtext(&rt.0);
+            let parsed = parse_richtext(rt);
 
             for section in parsed {
                 let mut tags = vec!["".to_string()];
