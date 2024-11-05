@@ -50,7 +50,8 @@ fn setup(mut commands: Commands) {
     commands.spawn((
         RichText::new(concat!(
             "default[lg,red]red[lg,white]white[lg,blue]blue[lg,rainbow]rainbow[]default\n",
-            "[[escaped brackets]]"
+            "[[escaped brackets]]\n",
+            "Press [rainbow]space[] to change default style."
         )),
         Node {
             align_self: AlignSelf::Center,
