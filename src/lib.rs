@@ -41,6 +41,11 @@ pub struct TextSection {
 #[derive(Component)]
 #[require(Text)]
 pub struct RichText(pub String);
+impl RichText {
+    pub fn new(text: impl Into<String>) -> Self {
+        Self(text.into())
+    }
+}
 
 // Added to entities holding reusable style components.
 //

@@ -48,10 +48,10 @@ fn setup(mut commands: Commands) {
     ));
 
     commands.spawn((
-        RichText(
-            "default[lg,red]red[lg,white]white[lg,blue]blue[lg,rainbow]rainbow[]default\n[[escaped]]"
-                .to_string(),
-        ),
+        RichText::new(concat!(
+            "default[lg,red]red[lg,white]white[lg,blue]blue[lg,rainbow]rainbow[]default\n",
+            "[[escaped brackets]]"
+        )),
         Node {
             align_self: AlignSelf::Center,
             justify_self: JustifySelf::Center,
