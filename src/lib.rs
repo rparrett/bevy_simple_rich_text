@@ -1,3 +1,31 @@
+//! A Bevy plugin the provides a simple rich text component.
+//!
+//! # Examples
+//!
+//! See the [examples](https://github.com/rparrett/bevy_simple_rich_text/tree/main/examples) folder.
+//!
+//! ```no_run
+//! use bevy::prelude::*;
+//! use bevy_simple_rich_text::{RichTextPlugin};
+//!
+//! fn main() {
+//!     App::new()
+//!         .add_plugins(DefaultPlugins)
+//!         .add_plugins(RichTextPlugin)
+//!         .add_systems(Startup, setup)
+//!         .run();
+//! }
+//!
+//! fn setup(mut commands: Commands) {
+//!     commands.spawn(Camera2d);
+//!     commands.spawn((
+//!         RegisteredStyle::new("red"),
+//!         TextColor(Color::hsl(0., 0.9, 0.7)),
+//!     ));
+//!     commands.spawn((RichText::new("[red]Text")));
+//! }
+//! ```
+
 use std::iter;
 
 use bevy::{
@@ -18,11 +46,13 @@ use bevy::{
     text::TextSpan,
     utils::HashMap,
 };
+
 use parser::parse_richtext;
 
 // TODO consider completely rebuilding style registry on any change
 // TODO text2d
 
+/// Commonly used types for `bevy_simple_rich_text`.
 pub mod prelude {
     pub use crate::RichText;
     pub use crate::RichTextPlugin;
@@ -31,12 +61,14 @@ pub mod prelude {
 
 mod parser;
 
+/// The top-level component for rich text in for `bevy_ui`.
 #[derive(Component)]
 #[require(Text)]
 pub struct RichText(pub String);
 impl RichText {
-    pub fn new(text: impl Into<String>) -> Self {
-        Self(text.into())
+    /// Creates a new `RichText` with the provided markup.
+    pub fn new(markup: impl Into<String>) -> Self {
+        Self(markup.into())
     }
 }
 
@@ -48,6 +80,7 @@ impl RichText {
 #[derive(Component)]
 pub struct RegisteredStyle(String);
 impl RegisteredStyle {
+    /// Creates a new `RegisteredStyle` with the provided tag.
     pub fn new(tag: impl Into<String>) -> Self {
         Self(tag.into())
     }
@@ -58,13 +91,19 @@ impl Default for RegisteredStyle {
     }
 }
 
+/// A `HashMap` containing a mapping of `RegisteredStyle` tags to the
+/// `Entity`s holding their style components.
 #[derive(Resource, Deref, DerefMut)]
 pub struct StyleRegistry(pub HashMap<String, Entity>);
 
 impl StyleRegistry {
+    /// Gets the `Entity` holding the default style components (the
+    /// [`RegisteredStyle`] with the tag `""`.)
     pub fn get_default(&self) -> &Entity {
         &self.0[""]
     }
+    /// Gets the `Entity` holding the style components for `tag`, falling
+    /// back to the `Entity` holding the default style components.
     pub fn get_or_default(&self, tag: &str) -> &Entity {
         self.0.get(tag).unwrap_or_else(|| self.get_default())
     }
@@ -179,7 +218,7 @@ fn richtext_changed(world: &mut World) {
     });
 }
 
-pub fn component_clone_via_reflect(
+fn component_clone_via_reflect(
     world: &mut World,
     component_id: ComponentId,
     source: Entity,

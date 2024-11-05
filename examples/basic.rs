@@ -1,3 +1,5 @@
+//! An example showing the basic functionality of `bevy_simple_rich_text`.
+
 use bevy::{input::common_conditions::input_just_pressed, prelude::*};
 use bevy_simple_rich_text::{prelude::*, RegisteredStyle, RichTextSet};
 
