@@ -28,27 +28,28 @@ fn setup(mut commands: Commands) {
         ..default()
     };
 
-    commands.spawn((RegisteredStyle::new("white"), font.clone()));
+    commands.spawn((RegisteredStyle::new("lg"), font.clone()));
+    commands.spawn((
+        RegisteredStyle::new("white"),
+        TextColor(Color::hsl(0., 1.0, 1.0)),
+    ));
     commands.spawn((
         RegisteredStyle::new("red"),
         TextColor(Color::hsl(0., 0.9, 0.7)),
-        font.clone(),
     ));
     commands.spawn((
         RegisteredStyle::new("blue"),
         TextColor(Color::hsl(240., 0.9, 0.7)),
-        font.clone(),
     ));
     commands.spawn((
         RegisteredStyle::new("rainbow"),
         Rainbow,
         TextColor(Color::hsl(0., 0.9, 0.8)),
-        font.clone(),
     ));
 
     commands.spawn((
         RichText(
-            "default[red]red[white]white[blue]blue[rainbow]rainbow[]default\n[[escaped]]"
+            "default[lg,red]red[lg,white]white[lg,blue]blue[lg,rainbow]rainbow[]default\n[[escaped]]"
                 .to_string(),
         ),
         Node {

@@ -1,11 +1,17 @@
 use bevy::{
     app::{Plugin, Update},
     asset::Assets,
-    ecs::{component::Component, entity::Entity, query::Changed, system::Resource, world::World},
+    ecs::{
+        component::{Component, ComponentId},
+        entity::Entity,
+        query::Changed,
+        system::Resource,
+        world::World,
+    },
     hierarchy::DespawnRecursiveExt,
     prelude::{
-        BuildChildren, Deref, DerefMut, DetectChanges, DetectChangesMut, FromWorld, Mut, Query,
-        RemovedComponents, Res, ResMut, Text, With,
+        AppTypeRegistry, BuildChildren, Deref, DerefMut, DetectChanges, DetectChangesMut,
+        FromWorld, Mut, Query, ReflectComponent, RemovedComponents, Res, ResMut, Text, With,
     },
     scene::{DynamicScene, DynamicSceneBuilder, SceneSpawner},
     text::TextSpan,
@@ -125,35 +131,59 @@ fn richtext_changed(world: &mut World) {
                     &section.tags
                 };
 
+                let span_ent = world.spawn(TextSpan::new(section.value.clone())).id();
+
+                world.entity_mut(ent).add_child(span_ent);
+
                 for tag in tags {
                     let style_ent = registry.get_or_default(&tag);
 
-                    // Clone components from the style entity onto a new entity
+                    let components = {
+                        let style_entt = world.entity(*style_ent);
 
-                    let mut scene_spawner = SceneSpawner::default();
-                    let scene = DynamicSceneBuilder::from_world(world)
-                        .extract_entity(*style_ent)
-                        .build();
+                        // Clone components from the style entity onto a new entity
 
-                    let scene_id = world.resource_mut::<Assets<DynamicScene>>().add(scene);
-                    let instance_id = scene_spawner.spawn_dynamic_sync(world, &scene_id).unwrap();
+                        let archetype = style_entt.archetype();
+                        let components = archetype.components().collect::<Vec<_>>();
+                        components
+                    };
 
-                    let span_ent = scene_spawner
-                        .iter_instance_entities(instance_id)
-                        .next()
-                        .unwrap();
-
-                    // Make that new entity a `TextSpan` and add it as as a child
-                    // to our `RichText`.
-
-                    world
-                        .entity_mut(span_ent)
-                        .insert(TextSpan::new(section.value.clone()));
-
-                    world.entity_mut(ent).add_child(span_ent);
+                    for component in components {
+                        component_clone_via_reflect(world, component, *style_ent, span_ent);
+                    }
                 }
             }
         }
+    });
+}
+
+pub fn component_clone_via_reflect(
+    world: &mut World,
+    component_id: ComponentId,
+    source: Entity,
+    target: Entity,
+) {
+    world.resource_scope::<AppTypeRegistry, ()>(|world, registry| {
+        let registry = registry.read();
+
+        let component_info = world
+            .components()
+            .get_info(component_id)
+            .expect("Component must be registered");
+        let Some(type_id) = component_info.type_id() else {
+            return;
+        };
+        let Some(reflect_component) = registry.get_type_data::<ReflectComponent>(type_id) else {
+            return;
+        };
+        let source_component = reflect_component
+            .reflect(world.get_entity(source).expect("Source entity must exist"))
+            .expect("Source entity must have reflected component")
+            .clone_value();
+        let mut target = world
+            .get_entity_mut(target)
+            .expect("Target entity must exist");
+        reflect_component.apply_or_insert(&mut target, &*source_component, &registry);
     });
 }
 
