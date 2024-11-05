@@ -23,7 +23,7 @@ fn main() {
 struct Rainbow;
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d::default());
+    commands.spawn(Camera2d);
 
     let font = TextFont {
         font_size: 40.,

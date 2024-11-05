@@ -11,7 +11,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d::default());
+    commands.spawn(Camera2d);
     commands.spawn((
         RegisteredStyle::new("lg"),
         TextFont {
