@@ -1,7 +1,7 @@
 //! An example showcasing rich text for 2d cameras in world-space.
 
 use bevy::prelude::*;
-use bevy_simple_rich_text::{prelude::*, RegisteredStyle};
+use bevy_simple_rich_text::{prelude::*, StyleTag};
 
 fn main() {
     App::new()
@@ -13,7 +13,7 @@ fn main() {
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
     commands.spawn((
-        RegisteredStyle::new("lg"),
+        StyleTag::new("lg"),
         TextFont {
             font_size: 40.,
             ..default()

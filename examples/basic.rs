@@ -1,15 +1,16 @@
 //! An example showing the basic functionality of `bevy_simple_rich_text`.
 
 use bevy::{input::common_conditions::input_just_pressed, prelude::*};
-use bevy_simple_rich_text::{prelude::*, RegisteredStyle, RichTextSet};
+use bevy_simple_rich_text::{prelude::*, RichTextSet, StyleTag};
 
 fn main() {
     App::new()
+        // Sibling components to `StyleTag` *must* be registered.
         .register_type::<Rainbow>()
         .add_plugins((DefaultPlugins, RichTextPlugin))
         .add_systems(Startup, setup)
         // `TextColor` or `TextFont` modifying systems should run after `RichTextSet`
-        // to prevent brief flashes of their registered styles.
+        // to prevent brief flashes of their tagged styles.
         .add_systems(Update, rainbow_text.after(RichTextSet))
         .add_systems(
             Update,
@@ -30,21 +31,12 @@ fn setup(mut commands: Commands) {
         ..default()
     };
 
-    commands.spawn((RegisteredStyle::new("lg"), font.clone()));
+    commands.spawn((StyleTag::new("lg"), font.clone()));
+    commands.spawn((StyleTag::new("white"), TextColor(Color::hsl(0., 1.0, 1.0))));
+    commands.spawn((StyleTag::new("red"), TextColor(Color::hsl(0., 0.9, 0.7))));
+    commands.spawn((StyleTag::new("blue"), TextColor(Color::hsl(240., 0.9, 0.7))));
     commands.spawn((
-        RegisteredStyle::new("white"),
-        TextColor(Color::hsl(0., 1.0, 1.0)),
-    ));
-    commands.spawn((
-        RegisteredStyle::new("red"),
-        TextColor(Color::hsl(0., 0.9, 0.7)),
-    ));
-    commands.spawn((
-        RegisteredStyle::new("blue"),
-        TextColor(Color::hsl(240., 0.9, 0.7)),
-    ));
-    commands.spawn((
-        RegisteredStyle::new("rainbow"),
+        StyleTag::new("rainbow"),
         Rainbow,
         TextColor(Color::hsl(0., 0.9, 0.8)),
     ));
@@ -74,7 +66,7 @@ fn rainbow_text(
 
 fn change_default(
     mut commands: Commands,
-    mut registry: ResMut<StyleRegistry>,
+    mut registry: ResMut<StyleTags>,
     style_query: Query<&TextColor>,
 ) {
     let default = registry.get_default();

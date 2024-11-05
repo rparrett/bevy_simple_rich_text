@@ -19,7 +19,7 @@
 //! fn setup(mut commands: Commands) {
 //!     commands.spawn(Camera2d);
 //!     commands.spawn((
-//!         RegisteredStyle::new("red"),
+//!         StyleTag::new("red"),
 //!         TextColor(Color::hsl(0., 0.9, 0.7)),
 //!     ));
 //!     commands.spawn((RichText::new("[red]Text")));
@@ -54,7 +54,7 @@ use parser::parse_richtext;
 
 /// Commonly used types for `bevy_simple_rich_text`.
 pub mod prelude {
-    pub use crate::{RichText, RichText2d, RichTextPlugin, StyleRegistry};
+    pub use crate::{RichText, RichText2d, RichTextPlugin, StyleTags};
 }
 
 mod parser;
@@ -64,7 +64,7 @@ mod parser;
 #[require(Text)]
 pub struct RichText(pub String);
 impl RichText {
-    /// Creates a new `RichText` with the provided markup.
+    /// Creates a new [`RichText`] with the provided markup.
     pub fn new(markup: impl Into<String>) -> Self {
         Self(markup.into())
     }
@@ -75,41 +75,41 @@ impl RichText {
 #[require(Text2d)]
 pub struct RichText2d(pub String);
 impl RichText2d {
-    /// Creates a new `RichText` with the provided markup.
+    /// Creates a new [`RichText2d`] with the provided markup.
     pub fn new(markup: impl Into<String>) -> Self {
         Self(markup.into())
     }
 }
 
-/// A component marking an entity as a "registered style" that can be referred to
-/// by its tag when defining a [`RichText`].
+/// A component marking an entity as a "style tag" that can be referred to
+/// by its inner string defining a [`RichText`].
 ///
 /// Intentionally not `Reflect` so that this doesn't end up on `TextSpan`s when
 /// the style is cloned.
 #[derive(Component)]
-pub struct RegisteredStyle(String);
-impl RegisteredStyle {
-    /// Creates a new `RegisteredStyle` with the provided tag.
+pub struct StyleTag(pub String);
+impl StyleTag {
+    /// Creates a new `StyleTag` with the provided tag.
     pub fn new(tag: impl Into<String>) -> Self {
         Self(tag.into())
     }
 }
-impl Default for RegisteredStyle {
+impl Default for StyleTag {
     fn default() -> Self {
         Self("".into())
     }
 }
 
-/// A `HashMap` containing a mapping of `RegisteredStyle` tags to the
+/// A `HashMap` containing a mapping of `StyleTag` tags to the
 /// `Entity`s holding their style components.
 ///
 /// This `Resource` is automatically managed by `bevy_simple_rich_text`.
 #[derive(Resource, Deref, DerefMut)]
-pub struct StyleRegistry(pub HashMap<String, Entity>);
+pub struct StyleTags(pub HashMap<String, Entity>);
 
-impl StyleRegistry {
+impl StyleTags {
     /// Gets the `Entity` holding the default style components (the
-    /// [`RegisteredStyle`] with the tag `""`.)
+    /// [`StyleTag`] with the tag `""`.)
     pub fn get_default(&self) -> &Entity {
         &self.0[""]
     }
@@ -119,16 +119,16 @@ impl StyleRegistry {
         self.0.get(tag).unwrap_or_else(|| self.get_default())
     }
 }
-impl FromWorld for StyleRegistry {
+impl FromWorld for StyleTags {
     fn from_world(world: &mut World) -> Self {
         Self(HashMap::from([(
             "".to_string(),
-            world.spawn((DefaultStyle, RegisteredStyle::new(""))).id(),
+            world.spawn((DefaultStyle, StyleTag::new(""))).id(),
         )]))
     }
 }
 
-/// A marker component for the [`RegisteredStyle`] that is associated with the
+/// A marker component for the [`StyleTag`] that is associated with the
 /// default style tag (`""`).
 #[derive(Component)]
 pub struct DefaultStyle;
@@ -143,7 +143,7 @@ pub struct RichTextSet;
 pub struct RichTextPlugin;
 impl Plugin for RichTextPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.init_resource::<StyleRegistry>();
+        app.init_resource::<StyleTags>();
         app.add_systems(
             Update,
             (richtext_changed, registry_changed, sync_registry).in_set(RichTextSet),
@@ -152,10 +152,10 @@ impl Plugin for RichTextPlugin {
 }
 
 fn sync_registry(
-    changed: Query<(Entity, &RegisteredStyle), Changed<RegisteredStyle>>,
-    all: Query<(), With<RegisteredStyle>>,
-    mut removed: RemovedComponents<RegisteredStyle>,
-    mut registry: ResMut<StyleRegistry>,
+    changed: Query<(Entity, &StyleTag), Changed<StyleTag>>,
+    all: Query<(), With<StyleTag>>,
+    mut removed: RemovedComponents<StyleTag>,
+    mut registry: ResMut<StyleTags>,
 ) {
     for ent in removed.read() {
         registry.0.retain(|_, v| *v != ent);
@@ -170,7 +170,7 @@ fn sync_registry(
     registry.0.retain(|_, v| all.get(*v).is_ok());
 }
 
-fn registry_changed(registry: Res<StyleRegistry>, mut rt_query: Query<Mut<RichText>>) {
+fn registry_changed(registry: Res<StyleTags>, mut rt_query: Query<Mut<RichText>>) {
     if !registry.is_changed() {
         return;
     }
@@ -192,7 +192,7 @@ fn richtext_changed(world: &mut World) {
     let mut rt_query = world.query::<&RichText>();
     let mut rt_2d_query = world.query::<&RichText2d>();
 
-    world.resource_scope(|world, registry: Mut<StyleRegistry>| {
+    world.resource_scope(|world, registry: Mut<StyleTags>| {
         for ent in ents {
             world.commands().entity(ent).despawn_descendants();
             world.flush();
