@@ -22,9 +22,8 @@ use chumsky::{
     Parser,
 };
 
-// TODO consider not making users mess around with the hashmap.
-// just let them spawn stuff with a RegisteredStyle component or something.
-// We would have to filter these components when cloning.
+// TODO consider completely rebuilding style registry on any change
+// TODO default style should be automatically composed into other specified styles
 
 pub mod prelude {
     pub use crate::RichText;
