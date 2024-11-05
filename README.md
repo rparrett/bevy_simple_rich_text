@@ -14,7 +14,9 @@ See [`examples/basic.rs`](./examples/basic.rs).
 
 ## Performance
 
-It's probably pretty slow. I doubt you'd want to animate a bunch of text with it.
+Modifying a `RichText` completely rebuilds the `TextSpans`, so it's probably pretty slow.
+
+But you can attach arbitrary marker components to styles to achieve fast animations.
 
 ## Compatibility
 
