@@ -162,36 +162,21 @@ fn test_empty() {
     assert_eq!(sections[0].value, "");
 }
 
-// #[test]
-// fn test_sections() {
-//     use bevy::color::palettes;
+#[test]
+fn test_sections() {
+    let sections = parse_richtext("test1[red]test2[]test3[red,bold]test4");
 
-//     let default = TextStyle::default();
+    assert_eq!(sections.len(), 4);
 
-//     let red = TextStyle {
-//         color: palettes::css::RED.into(),
-//         ..Default::default()
-//     };
-//     let blue = TextStyle {
-//         color: palettes::css::BLUE.into(),
-//         ..Default::default()
-//     };
-
-//     let style_library = StyleRegistry::default().with_styles([
-//         ("red".to_string(), red.clone()),
-//         ("blue".to_string(), blue.clone()),
-//     ]);
-
-//     let sections = rich("test1[red]test2[]test3[blue]test4", &style_library);
-
-//     assert_eq!(sections.len(), 4);
-
-//     assert_eq!(sections[0].value, "test1");
-//     assert_eq!(sections[0].style.color.0, default.color.0);
-//     assert_eq!(sections[1].value, "test2");
-//     assert_eq!(sections[1].style.color.0, red.color.0);
-//     assert_eq!(sections[2].value, "test3");
-//     assert_eq!(sections[2].style.color.0, default.color.0);
-//     assert_eq!(sections[3].value, "test4");
-//     assert_eq!(sections[3].style.color.0, blue.color.0);
-// }
+    assert_eq!(sections[0].value, "test1");
+    assert_eq!(sections[0].tags, Vec::<String>::new());
+    assert_eq!(sections[1].value, "test2");
+    assert_eq!(sections[1].tags, vec!["red".to_string()]);
+    assert_eq!(sections[2].value, "test3");
+    assert_eq!(sections[2].tags, Vec::<String>::new());
+    assert_eq!(sections[3].value, "test4");
+    assert_eq!(
+        sections[3].tags,
+        vec!["red".to_string(), "bold".to_string()]
+    );
+}
