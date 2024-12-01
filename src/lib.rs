@@ -49,9 +49,6 @@ use bevy::{
 
 use parser::parse_richtext;
 
-// TODO consider completely rebuilding style registry on any change
-// TODO text2d
-
 /// Commonly used types for `bevy_simple_rich_text`.
 pub mod prelude {
     pub use crate::{RichText, RichText2d, RichTextPlugin, StyleTag, StyleTags};
