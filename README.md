@@ -44,6 +44,6 @@ But you can attach arbitrary marker components to styles to achieve fast animati
 
 ## Contributing
 
-Please feel free to open a PR. The goal of this project is for it to stay simple and maintainable.
+Please feel free to open a PR. The goal of this project isn't to support every feature or use-case, but to be good enough for simple projects while remaining very maintainable.
 
 Please keep PRs small and scoped to a single feature or fix.
