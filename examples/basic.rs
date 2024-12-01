@@ -1,7 +1,7 @@
 //! An example showing the basic functionality of `bevy_simple_rich_text`.
 
 use bevy::{input::common_conditions::input_just_pressed, prelude::*};
-use bevy_simple_rich_text::{prelude::*, RichTextSet, StyleTag};
+use bevy_simple_rich_text::{prelude::*, RichTextSystems, StyleTag};
 
 fn main() {
     App::new()
@@ -9,9 +9,9 @@ fn main() {
         .register_type::<Rainbow>()
         .add_plugins((DefaultPlugins, RichTextPlugin))
         .add_systems(Startup, setup)
-        // `TextColor` or `TextFont` modifying systems should run after `RichTextSet`
+        // `TextColor` or `TextFont` modifying systems should run after `RichTextSystems`
         // to prevent brief flashes of their tagged styles.
-        .add_systems(Update, rainbow_text.after(RichTextSet))
+        .add_systems(Update, rainbow_text.after(RichTextSystems))
         .add_systems(
             Update,
             change_default.run_if(input_just_pressed(KeyCode::Space)),

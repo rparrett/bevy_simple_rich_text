@@ -133,7 +133,7 @@ pub struct DefaultStyle;
 /// A SystemSet containing the systems that process [`RichText`] and manage
 /// [`StyleRegistry`].
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RichTextSet;
+pub struct RichTextSystems;
 
 /// This plugin adds systems and initializes resources required for processing
 /// [`RichText`].
@@ -143,7 +143,7 @@ impl Plugin for RichTextPlugin {
         app.init_resource::<StyleTags>();
         app.add_systems(
             Update,
-            (richtext_changed, registry_changed, sync_registry).in_set(RichTextSet),
+            (richtext_changed, registry_changed, sync_registry).in_set(RichTextSystems),
         );
     }
 }
