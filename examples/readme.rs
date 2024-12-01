@@ -15,7 +15,9 @@ struct FancyText;
 
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
-    // Start README content
+
+    // Register style tags by spawning `StyleTag` with `TextFont`, `TextColor`,
+    // and any other arbitrary Component.
     commands.spawn((
         StyleTag::new("lg"),
         TextFont {
@@ -28,6 +30,7 @@ fn setup(mut commands: Commands) {
         TextColor(Color::hsl(0., 0.9, 0.7)),
         FancyText,
     ));
+
+    // And use them
     commands.spawn(RichText::new("[lg]Hello [lg,fancy]World"));
-    // End README Content
 }

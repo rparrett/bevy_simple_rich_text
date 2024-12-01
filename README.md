@@ -8,17 +8,24 @@ A tiny, unambitious rich text helper for `bevy_ui` with a simple bbcode-inspired
 
 ## Usage
 
-```rust,test
+```rust
+// Register style tags by spawning `StyleTag` with `TextFont`, `TextColor`,
+// and any other arbitrary Component.
 commands.spawn((
     StyleTag::new("lg"),
     TextFont {
         font_size: 40.,
         ..default()
     },
-    WorldMarker
+));
+commands.spawn((
+    StyleTag::new("fancy"),
+    TextColor(Color::hsl(0., 0.9, 0.7)),
+    FancyText,
 ));
 
-commands.spawn(RichText::new("Hello [lg]World"));
+// And use them
+commands.spawn(RichText::new("[lg]Hello [lg,fancy]World"));
 ```
 
 See also [`examples/advanced.rs`](./examples/advanced.rs).
