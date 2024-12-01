@@ -21,7 +21,7 @@ commands.spawn((
 commands.spawn(RichText::new("Hello [lg]World"));
 ```
 
-See also [`examples/basic.rs`](./examples/basic.rs).
+See also [`examples/advanced.rs`](./examples/advanced.rs).
 
 ## Performance
 
