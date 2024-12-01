@@ -40,6 +40,7 @@ But you can attach arbitrary marker components to styles to achieve fast animati
 
 | `bevy_simple_rich_text`  | `bevy` |
 | :--                      | :--    |
+| `0.2`                    | `0.15` |
 | `0.1`                    | `0.14` |
 
 ## Contributing
