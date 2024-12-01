@@ -8,7 +8,7 @@ A tiny, unambitious rich text helper for `bevy_ui` with a simple bbcode-inspired
 
 ## Usage
 
-```rust
+```rust,test
 commands.spawn((
     StyleTag::new("lg"),
     TextFont {
