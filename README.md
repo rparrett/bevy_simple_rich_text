@@ -4,17 +4,37 @@
 [![docs](https://docs.rs/bevy_simple_rich_text/badge.svg)](https://docs.rs/bevy_simple_rich_text)
 [![Following released Bevy versions](https://img.shields.io/badge/Bevy%20tracking-released%20version-lightblue)](https://bevyengine.org/learn/book/plugin-development/#main-branch-tracking)
 
-A tiny, unambitious rich text helper for `bevy_ui`.
-
-Inspired by a similar utility in [bevy_jam_template](https://github.com/benfrankel/bevy_jam_template).
+A tiny, unambitious rich text helper for `bevy_ui` with a simple bbcode-inspired syntax.
 
 ## Usage
 
-See [`examples/basic.rs`](./examples/basic.rs).
+```rust
+// Register style tags by spawning `StyleTag` with `TextFont`, `TextColor`,
+// and any other arbitrary Component.
+commands.spawn((
+    StyleTag::new("lg"),
+    TextFont {
+        font_size: 40.,
+        ..default()
+    },
+));
+commands.spawn((
+    StyleTag::new("fancy"),
+    TextColor(Color::hsl(0., 0.9, 0.7)),
+    FancyText,
+));
+
+// And use them
+commands.spawn(RichText::new("[lg]Hello [lg,fancy]World"));
+```
+
+See also [`examples/advanced.rs`](./examples/advanced.rs).
 
 ## Performance
 
-It's probably pretty slow. I doubt you'd want to animate a bunch of text with it.
+Modifying a `RichText` completely rebuilds the `TextSpans`, so it's probably pretty slow.
+
+But you can attach arbitrary marker components to styles to achieve fast animations.
 
 ## Compatibility
 
@@ -24,6 +44,6 @@ It's probably pretty slow. I doubt you'd want to animate a bunch of text with it
 
 ## Contributing
 
-Please feel free to open a PR, but keep in mind this project's goals. This is meant to be simple, maintainable, and easy for users to modify and plop into their own own projects.
+Please feel free to open a PR. The goal of this project isn't to support every feature or use-case, but to be good enough for simple projects while remaining very maintainable.
 
 Please keep PRs small and scoped to a single feature or fix.

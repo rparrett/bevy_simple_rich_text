@@ -1,212 +1,264 @@
+//! A Bevy plugin the provides a simple rich text component.
+//!
+//! # Examples
+//!
+//! See the [examples](https://github.com/rparrett/bevy_simple_rich_text/tree/main/examples) folder.
+//!
+//! ```no_run
+//! use bevy::prelude::*;
+//! use bevy_simple_rich_text::prelude::*;
+//!
+//! fn main() {
+//!     App::new()
+//!         .add_plugins(DefaultPlugins)
+//!         .add_plugins(RichTextPlugin)
+//!         .add_systems(Startup, setup)
+//!         .run();
+//! }
+//!
+//! fn setup(mut commands: Commands) {
+//!     commands.spawn(Camera2d);
+//!     commands.spawn((
+//!         StyleTag::new("red"),
+//!         TextColor(Color::hsl(0., 0.9, 0.7)),
+//!     ));
+//!     commands.spawn((RichText::new("[red]Text")));
+//! }
+//! ```
+
+use std::iter;
+
 use bevy::{
-    ecs::system::Resource,
-    prelude::{Deref, DerefMut},
-    text::{TextSection, TextStyle},
+    app::{Plugin, Update},
+    ecs::{
+        component::{Component, ComponentId},
+        entity::Entity,
+        query::Changed,
+        system::Resource,
+        world::World,
+    },
+    hierarchy::DespawnRecursiveExt,
+    prelude::{
+        AppTypeRegistry, BuildChildren, Deref, DerefMut, DetectChanges, DetectChangesMut,
+        FromWorld, IntoSystemConfigs, Mut, Or, Query, ReflectComponent, RemovedComponents, Res,
+        ResMut, SystemSet, Text, Text2d, With,
+    },
+    text::TextSpan,
     utils::HashMap,
 };
-use chumsky::{
-    error::Cheap,
-    primitive::{choice, just, none_of},
-    Parser,
-};
 
+use parser::parse_richtext;
+
+/// Commonly used types for `bevy_simple_rich_text`.
 pub mod prelude {
-    pub use crate::rich;
-    pub use crate::StyleRegistry;
+    pub use crate::{RichText, RichText2d, RichTextPlugin, StyleTag, StyleTags};
 }
 
+mod parser;
+
+/// The top-level component for rich text for `bevy_ui`.
+#[derive(Component)]
+#[require(Text)]
+pub struct RichText(pub String);
+impl RichText {
+    /// Creates a new [`RichText`] with the provided markup.
+    pub fn new(markup: impl Into<String>) -> Self {
+        Self(markup.into())
+    }
+}
+
+/// The top-level component for rich text in world-space for 2d cameras.
+#[derive(Component)]
+#[require(Text2d)]
+pub struct RichText2d(pub String);
+impl RichText2d {
+    /// Creates a new [`RichText2d`] with the provided markup.
+    pub fn new(markup: impl Into<String>) -> Self {
+        Self(markup.into())
+    }
+}
+
+/// A component marking an entity as a "style tag" that can be referred to
+/// by its inner string defining a [`RichText`].
+///
+/// Intentionally not `Reflect` so that this doesn't end up on `TextSpan`s when
+/// the style is cloned.
+#[derive(Component)]
+pub struct StyleTag(pub String);
+impl StyleTag {
+    /// Creates a new `StyleTag` with the provided tag.
+    pub fn new(tag: impl Into<String>) -> Self {
+        Self(tag.into())
+    }
+}
+impl Default for StyleTag {
+    fn default() -> Self {
+        Self("".into())
+    }
+}
+
+/// A `HashMap` containing a mapping of `StyleTag` tags to the
+/// `Entity`s holding their style components.
+///
+/// This `Resource` is automatically managed by `bevy_simple_rich_text`.
 #[derive(Resource, Deref, DerefMut)]
-pub struct StyleRegistry(pub HashMap<String, TextStyle>);
-impl StyleRegistry {
-    pub fn get_default(&self) -> &TextStyle {
+pub struct StyleTags(pub HashMap<String, Entity>);
+
+impl StyleTags {
+    /// Gets the `Entity` holding the default style components (the
+    /// [`StyleTag`] with the tag `""`.)
+    pub fn get_default(&self) -> &Entity {
         &self.0[""]
     }
-    pub fn get_or_default(&self, tag: &str) -> &TextStyle {
+    /// Gets the `Entity` holding the style components for `tag`, falling
+    /// back to the `Entity` holding the default style components.
+    pub fn get_or_default(&self, tag: &str) -> &Entity {
         self.0.get(tag).unwrap_or_else(|| self.get_default())
     }
-    pub fn with_styles<T>(mut self, styles: T) -> Self
-    where
-        T: IntoIterator<Item = (String, TextStyle)>,
-    {
-        self.0.extend(styles);
-        self
-    }
 }
-impl Default for StyleRegistry {
-    fn default() -> Self {
-        Self(HashMap::from([("".to_string(), TextStyle::default())]))
+impl FromWorld for StyleTags {
+    fn from_world(world: &mut World) -> Self {
+        Self(HashMap::from([(
+            "".to_string(),
+            world.spawn((DefaultStyle, StyleTag::new(""))).id(),
+        )]))
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum TagOrText {
-    Tag(String),
-    Text(String),
+/// A marker component for the [`StyleTag`] that is associated with the
+/// default style tag (`""`).
+#[derive(Component)]
+pub struct DefaultStyle;
+
+/// A SystemSet containing the systems that process [`RichText`] and manage
+/// [`StyleRegistry`].
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RichTextSystems;
+
+/// This plugin adds systems and initializes resources required for processing
+/// [`RichText`].
+pub struct RichTextPlugin;
+impl Plugin for RichTextPlugin {
+    fn build(&self, app: &mut bevy::prelude::App) {
+        app.init_resource::<StyleTags>();
+        app.add_systems(
+            Update,
+            (richtext_changed, registry_changed, sync_registry).in_set(RichTextSystems),
+        );
+    }
 }
 
-fn escaped_bracket() -> impl Parser<char, String, Error = Cheap<char>> {
-    just('[')
-        .ignore_then(just('['))
-        .or(just(']').ignore_then(just(']')))
-        .map(|c| c.to_string())
+fn sync_registry(
+    changed: Query<(Entity, &StyleTag), Changed<StyleTag>>,
+    all: Query<(), With<StyleTag>>,
+    mut removed: RemovedComponents<StyleTag>,
+    mut registry: ResMut<StyleTags>,
+) {
+    for ent in removed.read() {
+        registry.0.retain(|_, v| *v != ent);
+    }
+    if changed.is_empty() {
+        return;
+    }
+    for (ent, style) in &changed {
+        registry.0.insert(style.0.clone(), ent);
+    }
+
+    registry.0.retain(|_, v| all.get(*v).is_ok());
 }
 
-fn tag() -> impl Parser<char, TagOrText, Error = Cheap<char>> {
-    not_end_bracket()
-        .repeated()
-        .delimited_by(just('['), just(']'))
-        .collect::<String>()
-        .map(TagOrText::Tag)
+fn registry_changed(registry: Res<StyleTags>, mut rt_query: Query<Mut<RichText>>) {
+    if !registry.is_changed() {
+        return;
+    }
+
+    for mut rt in &mut rt_query {
+        rt.set_changed();
+    }
 }
 
-fn not_end_bracket() -> impl Parser<char, String, Error = Cheap<char>> {
-    none_of("]").repeated().at_least(1).collect::<String>()
-}
+fn richtext_changed(world: &mut World) {
+    let mut ents_query =
+        world.query_filtered::<Entity, Or<(Changed<RichText>, Changed<RichText2d>)>>();
 
-fn not_any_bracket() -> impl Parser<char, String, Error = Cheap<char>> {
-    none_of("[]").repeated().at_least(1).collect::<String>()
-}
+    let ents = ents_query.iter(world).collect::<Vec<_>>();
+    if ents.is_empty() {
+        return;
+    }
 
-fn stray_end_bracket() -> impl Parser<char, String, Error = Cheap<char>> {
-    just(']').map(|c| c.to_string())
-}
+    let mut rt_query = world.query::<&RichText>();
+    let mut rt_2d_query = world.query::<&RichText2d>();
 
-fn text() -> impl Parser<char, TagOrText, Error = Cheap<char>> {
-    choice((escaped_bracket(), not_any_bracket(), stray_end_bracket()))
-        .repeated()
-        .at_least(1)
-        .collect::<String>()
-        .map(TagOrText::Text)
-}
+    world.resource_scope(|world, registry: Mut<StyleTags>| {
+        for ent in ents {
+            world.commands().entity(ent).despawn_descendants();
+            world.flush();
 
-fn tags_or_text() -> impl Parser<char, Vec<TagOrText>, Error = Cheap<char>> {
-    choice((text(), tag())).repeated().collect::<Vec<_>>()
-}
+            let Ok(rt) = rt_query
+                .get(world, ent)
+                .map(|rt| &rt.0)
+                .or_else(|_| rt_2d_query.get(world, ent).map(|rt| &rt.0))
+            else {
+                continue;
+            };
 
-pub fn rich(text: &str, styles: &StyleRegistry) -> Vec<TextSection> {
-    let mut sections = vec![];
-    let mut style = styles.get_default();
+            let parsed = parse_richtext(rt);
 
-    let result = tags_or_text().parse(text);
+            for section in parsed {
+                let mut tags = vec!["".to_string()];
+                tags.extend(section.tags);
 
-    let tags_or_text = match result {
-        Ok(tags_or_text) => tags_or_text,
-        Err(errors) => {
-            bevy::log::error!(
-                "bevy_simple_rich_text failed to parse the input string. This should never happen."
-            );
-            bevy::log::error!("input: {}", text);
-            for error in errors {
-                bevy::log::error!(
-                    "parsing failed at span {:?} with label {:?}",
-                    error.span(),
-                    error.label()
-                );
+                let span_ent = world.spawn(TextSpan::new(section.value.clone())).id();
+
+                world.entity_mut(ent).add_child(span_ent);
+
+                let empty_tags = iter::once("");
+                for tag in empty_tags.chain(tags.iter().map(|t| t.as_str())) {
+                    let style_ent = registry.get_or_default(tag);
+
+                    let components = {
+                        let style_entt = world.entity(*style_ent);
+
+                        let archetype = style_entt.archetype();
+                        let components = archetype.components().collect::<Vec<_>>();
+                        components
+                    };
+
+                    for component in components {
+                        component_clone_via_reflect(world, component, *style_ent, span_ent);
+                    }
+                }
             }
-
-            sections.push(TextSection {
-                value: "".to_string(),
-                style: style.clone(),
-            });
-
-            return sections;
         }
-    };
-
-    for t in tags_or_text {
-        match t {
-            TagOrText::Text(value) => sections.push(TextSection {
-                value,
-                style: style.clone(),
-            }),
-            TagOrText::Tag(tag) => style = styles.get_or_default(&tag),
-        }
-    }
-
-    if sections.is_empty() {
-        sections.push(TextSection {
-            value: "".to_string(),
-            style: style.clone(),
-        });
-    }
-
-    sections
+    });
 }
 
-#[test]
-fn test_parser() {
-    assert_eq!(
-        tags_or_text().parse("[bold]"),
-        Ok(vec![TagOrText::Tag("bold".to_string())])
-    );
-    assert_eq!(
-        tags_or_text().parse("[[horse]]"),
-        Ok(vec![TagOrText::Text("[horse]".to_string())])
-    );
-    assert_eq!(
-        tags_or_text().parse("[bold]Bold Text[italic]Italic Text"),
-        Ok(vec![
-            TagOrText::Tag("bold".to_string()),
-            TagOrText::Text("Bold Text".to_string()),
-            TagOrText::Tag("italic".to_string()),
-            TagOrText::Text("Italic Text".to_string()),
-        ])
-    );
-    assert_eq!(
-        tags_or_text().parse("[]Text[]"),
-        Ok(vec![
-            TagOrText::Tag("".to_string()),
-            TagOrText::Text("Text".to_string()),
-            TagOrText::Tag("".to_string()),
-        ])
-    );
-    assert_eq!(
-        tags_or_text().parse("[[]]][]"),
-        Ok(vec![
-            TagOrText::Text("[]]".to_string()),
-            TagOrText::Tag("".to_string()),
-        ])
-    );
-}
+fn component_clone_via_reflect(
+    world: &mut World,
+    component_id: ComponentId,
+    source: Entity,
+    target: Entity,
+) {
+    world.resource_scope::<AppTypeRegistry, ()>(|world, registry| {
+        let registry = registry.read();
 
-#[test]
-fn test_empty() {
-    let sections = rich("", &StyleRegistry::default());
-
-    assert_eq!(sections.len(), 1);
-    assert_eq!(sections[0].value, "");
-}
-
-#[test]
-fn test_sections() {
-    use bevy::color::palettes;
-
-    let default = TextStyle::default();
-
-    let red = TextStyle {
-        color: palettes::css::RED.into(),
-        ..Default::default()
-    };
-    let blue = TextStyle {
-        color: palettes::css::BLUE.into(),
-        ..Default::default()
-    };
-
-    let style_library = StyleRegistry::default().with_styles([
-        ("red".to_string(), red.clone()),
-        ("blue".to_string(), blue.clone()),
-    ]);
-
-    let sections = rich("test1[red]test2[]test3[blue]test4", &style_library);
-
-    assert_eq!(sections.len(), 4);
-
-    assert_eq!(sections[0].value, "test1");
-    assert_eq!(sections[0].style.color, default.color);
-    assert_eq!(sections[1].value, "test2");
-    assert_eq!(sections[1].style.color, red.color);
-    assert_eq!(sections[2].value, "test3");
-    assert_eq!(sections[2].style.color, default.color);
-    assert_eq!(sections[3].value, "test4");
-    assert_eq!(sections[3].style.color, blue.color);
+        let component_info = world
+            .components()
+            .get_info(component_id)
+            .expect("Component must be registered");
+        let Some(type_id) = component_info.type_id() else {
+            return;
+        };
+        let Some(reflect_component) = registry.get_type_data::<ReflectComponent>(type_id) else {
+            return;
+        };
+        let source_component = reflect_component
+            .reflect(world.get_entity(source).expect("Source entity must exist"))
+            .expect("Source entity must have reflected component")
+            .clone_value();
+        let mut target = world
+            .get_entity_mut(target)
+            .expect("Target entity must exist");
+        reflect_component.apply_or_insert(&mut target, &*source_component, &registry);
+    });
 }
