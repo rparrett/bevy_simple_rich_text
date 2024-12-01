@@ -4,13 +4,24 @@
 [![docs](https://docs.rs/bevy_simple_rich_text/badge.svg)](https://docs.rs/bevy_simple_rich_text)
 [![Following released Bevy versions](https://img.shields.io/badge/Bevy%20tracking-released%20version-lightblue)](https://bevyengine.org/learn/book/plugin-development/#main-branch-tracking)
 
-A tiny, unambitious rich text helper for `bevy_ui`.
-
-Inspired by a similar utility in [bevy_jam_template](https://github.com/benfrankel/bevy_jam_template).
+A tiny, unambitious rich text helper for `bevy_ui` with a simple bbcode-inspired syntax.
 
 ## Usage
 
-See [`examples/basic.rs`](./examples/basic.rs).
+```rust
+commands.spawn((
+    StyleTag::new("lg"),
+    TextFont {
+        font_size: 40.,
+        ..default()
+    },
+    WorldMarker
+));
+
+commands.spawn(RichText::new("Hello [lg]World"));
+```
+
+See also [`examples/basic.rs`](./examples/basic.rs).
 
 ## Performance
 
@@ -26,6 +37,6 @@ But you can attach arbitrary marker components to styles to achieve fast animati
 
 ## Contributing
 
-Please feel free to open a PR, but keep in mind this project's goals. This is meant to be simple, maintainable, and easy for users to modify and plop into their own own projects.
+Please feel free to open a PR. The goal of this project is for it to stay simple and maintainable.
 
 Please keep PRs small and scoped to a single feature or fix.
