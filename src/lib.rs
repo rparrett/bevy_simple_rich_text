@@ -112,12 +112,10 @@ impl StyleTags {
 }
 impl FromWorld for StyleTags {
     fn from_world(world: &mut World) -> Self {
-        let mut map = HashMap::default();
-        map.insert(
+        Self(HashMap::from_iter([(
             "".to_string(),
             world.spawn((DefaultStyle, StyleTag::new(""))).id(),
-        );
-        Self(map)
+        )]))
     }
 }
 
