@@ -1,7 +1,7 @@
 use chumsky::{
+    Parser,
     error::Cheap,
     primitive::{choice, just, none_of},
-    Parser,
 };
 
 #[derive(Default)]

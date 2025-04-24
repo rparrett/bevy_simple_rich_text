@@ -1,7 +1,7 @@
 //! An example showcasing rich text for bevy_ui.
 
 use bevy::prelude::*;
-use bevy_simple_rich_text::{prelude::*, StyleTag};
+use bevy_simple_rich_text::{StyleTag, prelude::*};
 
 fn main() {
     App::new()

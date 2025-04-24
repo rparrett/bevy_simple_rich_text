@@ -1,7 +1,7 @@
 //! An example showcasing rich text for 2d cameras in world-space.
 
 use bevy::prelude::*;
-use bevy_simple_rich_text::{prelude::*, StyleTag};
+use bevy_simple_rich_text::{StyleTag, prelude::*};
 
 fn main() {
     App::new()
