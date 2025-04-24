@@ -19,5 +19,5 @@ fn setup(mut commands: Commands) {
             ..default()
         },
     ));
-    commands.spawn(RichText2d::new("[lg]Hello"));
+    commands.spawn(RichText2d::new("[lg]Hello[]world"));
 }

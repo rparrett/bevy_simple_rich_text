@@ -31,20 +31,14 @@ use std::iter;
 use bevy::{
     app::{Plugin, Update},
     ecs::{
-        component::{Component, ComponentId},
-        entity::Entity,
-        query::Changed,
-        system::Resource,
-        world::World,
+        component::Component, entity::Entity, hierarchy::Children, query::Changed, world::World,
     },
-    hierarchy::DespawnRecursiveExt,
+    platform::collections::HashMap,
     prelude::{
-        AppTypeRegistry, BuildChildren, Deref, DerefMut, DetectChanges, DetectChangesMut,
-        FromWorld, IntoSystemConfigs, Mut, Or, Query, ReflectComponent, RemovedComponents, Res,
-        ResMut, SystemSet, Text, Text2d, With,
+        Deref, DerefMut, DetectChanges, DetectChangesMut, FromWorld, IntoScheduleConfigs, Mut, Or,
+        Query, RemovedComponents, Res, ResMut, Resource, SystemSet, Text, Text2d, With,
     },
     text::TextSpan,
-    utils::HashMap,
 };
 
 use parser::parse_richtext;
@@ -118,7 +112,7 @@ impl StyleTags {
 }
 impl FromWorld for StyleTags {
     fn from_world(world: &mut World) -> Self {
-        Self(HashMap::from([(
+        Self(HashMap::from_iter([(
             "".to_string(),
             world.spawn((DefaultStyle, StyleTag::new(""))).id(),
         )]))
@@ -143,7 +137,9 @@ impl Plugin for RichTextPlugin {
         app.init_resource::<StyleTags>();
         app.add_systems(
             Update,
-            (richtext_changed, registry_changed, sync_registry).in_set(RichTextSystems),
+            (registry_changed, sync_registry, richtext_changed)
+                .chain()
+                .in_set(RichTextSystems),
         );
     }
 }
@@ -191,7 +187,7 @@ fn richtext_changed(world: &mut World) {
 
     world.resource_scope(|world, registry: Mut<StyleTags>| {
         for ent in ents {
-            world.commands().entity(ent).despawn_descendants();
+            world.commands().entity(ent).despawn_related::<Children>();
             world.flush();
 
             let Ok(rt) = rt_query
@@ -216,49 +212,14 @@ fn richtext_changed(world: &mut World) {
                 for tag in empty_tags.chain(tags.iter().map(|t| t.as_str())) {
                     let style_ent = registry.get_or_default(tag);
 
-                    let components = {
-                        let style_entt = world.entity(*style_ent);
-
-                        let archetype = style_entt.archetype();
-                        let components = archetype.components().collect::<Vec<_>>();
-                        components
-                    };
-
-                    for component in components {
-                        component_clone_via_reflect(world, component, *style_ent, span_ent);
-                    }
+                    world
+                        .commands()
+                        .entity(*style_ent)
+                        .clone_with(span_ent, |builder| {
+                            builder.deny::<(StyleTag, DefaultStyle)>();
+                        });
                 }
             }
         }
-    });
-}
-
-fn component_clone_via_reflect(
-    world: &mut World,
-    component_id: ComponentId,
-    source: Entity,
-    target: Entity,
-) {
-    world.resource_scope::<AppTypeRegistry, ()>(|world, registry| {
-        let registry = registry.read();
-
-        let component_info = world
-            .components()
-            .get_info(component_id)
-            .expect("Component must be registered");
-        let Some(type_id) = component_info.type_id() else {
-            return;
-        };
-        let Some(reflect_component) = registry.get_type_data::<ReflectComponent>(type_id) else {
-            return;
-        };
-        let source_component = reflect_component
-            .reflect(world.get_entity(source).expect("Source entity must exist"))
-            .expect("Source entity must have reflected component")
-            .clone_value();
-        let mut target = world
-            .get_entity_mut(target)
-            .expect("Target entity must exist");
-        reflect_component.apply_or_insert(&mut target, &*source_component, &registry);
     });
 }
