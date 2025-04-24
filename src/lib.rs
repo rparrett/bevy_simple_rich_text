@@ -33,7 +33,7 @@ use bevy::{
     ecs::{
         component::Component, entity::Entity, hierarchy::Children, query::Changed, world::World,
     },
-    platform_support::collections::HashMap,
+    platform::collections::HashMap,
     prelude::{
         Deref, DerefMut, DetectChanges, DetectChangesMut, FromWorld, IntoScheduleConfigs, Mut, Or,
         Query, RemovedComponents, Res, ResMut, Resource, SystemSet, Text, Text2d, With,
