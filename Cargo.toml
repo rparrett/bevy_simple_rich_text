@@ -1,7 +1,7 @@
 [package]
 name = "bevy_simple_rich_text"
 version = "0.2.0"
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "A tiny rich text helper for Bevy"
 repository = "https://github.com/rparrett/bevy_simple_rich_text"
