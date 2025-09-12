@@ -13,7 +13,7 @@ readme = "README.md"
 exclude = [".github"]
 
 [dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy", default-features = false, features = [
+bevy = { version = "0.17.0-rc.1", default-features = false, features = [
     "bevy_ui",
     "bevy_text",
     "bevy_scene",
@@ -22,7 +22,7 @@ bevy = { git = "https://github.com/bevyengine/bevy", default-features = false, f
 chumsky = "0.9.3"
 
 [dev-dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy" }
+bevy = { version = "0.17.0-rc.1" }
 
 [lints.rust]
 missing_docs = "warn"
