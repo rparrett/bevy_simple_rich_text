@@ -219,7 +219,7 @@ fn richtext_changed(world: &mut World) {
                     world
                         .commands()
                         .entity(*style_ent)
-                        .clone_with(span_ent, |builder| {
+                        .clone_with_opt_out(span_ent, |builder| {
                             builder.deny::<(StyleTag, DefaultStyle, ChildOf)>();
                         });
                 }
