@@ -31,7 +31,11 @@ use std::iter;
 use bevy::{
     app::{Plugin, Update},
     ecs::{
-        component::Component, entity::Entity, hierarchy::Children, query::Changed, world::World,
+        component::Component,
+        entity::Entity,
+        hierarchy::{ChildOf, Children},
+        query::Changed,
+        world::World,
     },
     platform::collections::HashMap,
     prelude::{
@@ -216,7 +220,7 @@ fn richtext_changed(world: &mut World) {
                         .commands()
                         .entity(*style_ent)
                         .clone_with(span_ent, |builder| {
-                            builder.deny::<(StyleTag, DefaultStyle)>();
+                            builder.deny::<(StyleTag, DefaultStyle, ChildOf)>();
                         });
                 }
             }
