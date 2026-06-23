@@ -15,7 +15,7 @@ fn setup(mut commands: Commands) {
     commands.spawn((
         StyleTag::new("lg"),
         TextFont {
-            font_size: 40.,
+            font_size: FontSize::Px(40.),
             ..default()
         },
     ));

@@ -14,7 +14,7 @@ A tiny, unambitious rich text helper for `bevy_ui` with a simple bbcode-inspired
 commands.spawn((
     StyleTag::new("lg"),
     TextFont {
-        font_size: 40.,
+        font_size: FontSize::Px(40.),
         ..default()
     },
 ));
