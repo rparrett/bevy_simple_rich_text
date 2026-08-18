@@ -55,7 +55,7 @@ pub mod prelude {
 mod parser;
 
 /// The top-level component for rich text for `bevy_ui`.
-#[derive(Component)]
+#[derive(Component, Default)]
 #[require(Text)]
 pub struct RichText(pub String);
 impl RichText {
@@ -66,7 +66,7 @@ impl RichText {
 }
 
 /// The top-level component for rich text in world-space for 2d cameras.
-#[derive(Component)]
+#[derive(Component, Default)]
 #[require(Text2d)]
 pub struct RichText2d(pub String);
 impl RichText2d {
