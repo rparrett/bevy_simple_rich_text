@@ -55,7 +55,7 @@ pub mod prelude {
 mod parser;
 
 /// The top-level component for rich text for `bevy_ui`.
-#[derive(Component)]
+#[derive(Clone, Component, Default)]
 #[require(Text)]
 pub struct RichText(pub String);
 impl RichText {
@@ -66,7 +66,7 @@ impl RichText {
 }
 
 /// The top-level component for rich text in world-space for 2d cameras.
-#[derive(Component)]
+#[derive(Clone, Component, Default)]
 #[require(Text2d)]
 pub struct RichText2d(pub String);
 impl RichText2d {
@@ -81,7 +81,7 @@ impl RichText2d {
 ///
 /// Intentionally not `Reflect` so that this doesn't end up on `TextSpan`s when
 /// the style is cloned.
-#[derive(Component)]
+#[derive(Clone, Component)]
 pub struct StyleTag(pub String);
 impl StyleTag {
     /// Creates a new `StyleTag` with the provided tag.
